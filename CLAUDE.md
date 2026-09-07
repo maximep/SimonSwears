@@ -29,16 +29,17 @@ Fait :
 - **Les douze `.dcr` de jeu sont acquis** (2026-09-07), depuis le serveur
   d'origine qui les sert toujours. Outil : `tools/fetch_dcr.py`. Tous validés
   `RIFX` / codec `FGDM`, entre 358 et 438 Ko. Voir Piste A pour le détail.
-- Chacun des douze contient **11 ressources `snd `**. Ni `ediM` ni `sndH`/`sndS` :
-  l'audio est en ancien format Macintosh `snd `, pas en Shockwave Audio.
+- **Les 130 sons sont extraits**, en MP3, sans réencodage. `tools/extraire_sons.py`.
+- **Le remake utilise les vrais sons**, musique de fond comprise, avec sélecteur
+  des douze langues. `tools/embarquer_sons.py` fabrique les paquets.
 
 Pas fait :
 
-- Aucun son décodé. Les 11 `snd ` par film sont localisés mais pas convertis
-  en fichiers écoutables. C'est l'étape suivante, voir Piste B.
-- Le parser sort 110 ressources sur 124 annoncées pour `simonswears.dcr`, et
-  signale `incorrect header check` sur chaque `snd `. Attendu : les charges
-  `snd ` ne sont pas zlib. Le repli sur octets bruts doit être vérifié.
+- La correspondance emplacement sonore → couleur du Simon d'origine reste
+  **indéterminée**. Voir « Ce qu'on ne sait pas » plus bas.
+- Deux films, `jp` et `rs`, n'ont pas de `boing2` : le `snd ` correspondant ne
+  fait que 82 octets, l'en-tête sans charge. Slot vide chez l'auteur, pas un
+  échec d'extraction.
 
 ## Ce que contient loading.dcr
 
@@ -154,35 +155,62 @@ Pour les ressources stockées directement dans `FGEI` : tenter `zlib.decompress`
 retomber sur les octets bruts en cas d'échec. En pratique, `tailleCompressée ==
 tailleDécompressée` signale un stockage non compressé.
 
-### Récupérer l'audio
+### Récupérer l'audio — **résolu**
 
-C'est l'objectif. Dans un film Director, le son n'est pas un seul chunk :
+Le pari du départ était bon : c'est bien du Shockwave Audio, donc du MP3. Mais
+il n'arrive pas par le tag `ediM` comme supposé. Ce qu'on trouve réellement :
 
-- `snd ` — ressource sonore façon Macintosh, ancien format.
-- `sndH` + `sndS` — le couple habituel : en-tête d'un côté (fréquence
-  d'échantillonnage, profondeur, canaux, points de boucle), échantillons PCM bruts
-  de l'autre. Les deux se rattachent au même membre de cast.
-- `ediM` — son compressé en Shockwave Audio, c'est-à-dire du MP3. **Très probable
-  ici**, puisque le jeu était destiné au web en modem.
+- **Tag `snd `, mais `ctype = 1`.** Le champ `typeCompression` de la map, que le
+  parser ignorait, ne vaut pas 0. Le chunk **`Fcdr`** déclare les codecs et dit
+  en clair ce que vaut l'index 1 : *« This movie requires the SWA Decompression
+  Xtra »*. L'index 0 est *« Macromedia ziplib compression »*.
+- **La charge n'est donc pas zlib.** Elle commence par un en-tête sonore
+  Macintosh de **82 octets** — `00 02` (format 2), `0000` (refCount),
+  `0001` (une commande), `8051` (`bufferCmd`) — puis les trames MPEG démarrent
+  à l'offset 82, sans exception sur les 130 sons extraits.
+- **MPEG-2 Layer III, mono**, 22 050 Hz pour les voix et 44 100 Hz pour les
+  sons longs. Débit 48 kbit/s sur la version anglaise, 64 sur les autres.
 
-Marche à suivre :
+D'où une extraction **sans réencodage** : on recopie les octets à partir de la
+première trame. Les fichiers sont donc exactement ceux de 2004, et le MP3 est
+lu nativement par les navigateurs — aucune conversion n'est utile.
 
-1. Lister les tags présents avant tout. `tools/dcr_extract.py --list` le fait.
-2. Si `ediM` : les données sont des trames MP3. Chercher la synchro `FF FB` ou
-   `FF F3`, découper à partir de là, écrire en `.mp3` et tester avec `ffprobe`.
-   Souvent le fichier est directement lisible sans traitement.
-3. Si `sndH` + `sndS` : reconstruire un en-tête WAV autour du PCM de `sndS`. Ne pas
-   deviner les paramètres. Les récupérer depuis `sndH` et **les recouper avec le
-   membre `CASt` associé**, qui porte aussi la fréquence, la profondeur et le nombre
-   de canaux. En cas de doute, essayer 22050 puis 11025 Hz, 8 puis 16 bits, mono,
-   et écouter : un mauvais réglage s'entend immédiatement.
-4. Le chunk `KEY*` fait le lien entre un membre de cast et ses ressources
-   associées. C'est lui qu'il faut lire pour savoir quel `sndS` va avec quel `CASt`,
-   donc pour nommer les fichiers de sortie correctement plutôt que `047_sndS.bin`.
-5. Les noms des membres de cast sont dans les `CASt` eux-mêmes. Dans `loading.dcr`
-   ils sont explicites (`go english`, `go de`, `Loading loop`). Il y a de bonnes
-   chances que les sons du jeu soient nommés lisiblement aussi, ce qui donnerait
-   directement la correspondance couleur/mot.
+`tools/extraire_sons.py assets/*.dcr --out out --par-langue` produit
+`out/<code>/<nom>.mp3`. Deux points sur lesquels l'outil ne fait pas confiance
+au hasard :
+
+- **La synchro MP3 est validée par chaînage.** Un octet `FF` isolé est fréquent
+  dans un en-tête ou du PCM ; chercher `FF Fx` et découper là donne des faux
+  positifs. On n'accepte un offset que si au moins quatre trames s'enchaînent,
+  chacune atterrissant exactement sur la suivante d'après la taille calculée, et
+  sans changement de fréquence en route.
+- **Les fichiers sont nommés, pas numérotés.** Le chunk `KEY*` relie chaque
+  `snd ` à son membre `CASt`, et le `CASt` porte le nom de l'auteur. Le nom est
+  l'item 1 de la table d'items du bloc info, en chaîne Pascal.
+
+Les onze emplacements, identiques dans les douze films — Joe Tree a gardé les
+identifiants anglais et n'a remplacé que l'audio :
+
+| Emplacement | Rôle |
+|---|---|
+| `fuck`, `bollocks`, `wanker`, `bastard` | les quatre mots des quatre touches |
+| `music` | la boucle de fond, 2,27 s |
+| `boing2` | transition entre les tours |
+| `welldone`, `congrats` | encouragements |
+| `out`, `fuckedit` | défaite |
+| `wind-down` | descente de fin de partie |
+
+### Ce qu'on ne sait pas
+
+**Quel emplacement allait à quelle couleur.** Aucun bitmap n'est nommé dans le
+cast, et les noms de sons ne portent pas la couleur. L'information est dans le
+bytecode Lingo des `Lscr`, qu'on ne décompile pas — décision assumée, voir plus
+bas. Le remake utilise l'ordre `fuck`, `bollocks`, `wanker`, `bastard` pour
+vert / rouge / jaune / bleu : c'est un **choix par défaut, pas une restitution**.
+La constante `SLOTS_MOTS` en tête du script le dit et se change en une ligne.
+
+Si quelqu'un retrouve une capture vidéo du jeu d'origine, c'est le moyen le plus
+simple de trancher.
 
 ### Références utiles
 
@@ -197,22 +225,39 @@ devient nécessaire pour comprendre la logique, passer par ProjectorRays.
 
 ## Piste C — le remake web
 
-`web/simon-swears.html`, autonome, un seul fichier. Il fonctionne déjà :
+`web/simon-swears.html`, toujours un seul fichier sans build ni dépendance.
+Les vrais échantillons ont remplacé la synthèse vocale.
 
-- Quatre quadrants, disposition Simon classique, vert / rouge / jaune / bleu.
-- Les quatre notes du Simon d'origine générées en Web Audio : mi 329,63 Hz,
-  do# 277,18 Hz, la 220 Hz, mi grave 164,81 Hz.
-- Les mots passent par `speechSynthesis`, avec un pitch distinct par couleur.
-  **C'est le bouche-trou à remplacer par les vrais échantillons.**
-- La séquence attend la fin réelle de chaque énoncé via `onend`, avec un garde-fou
-  à 1,6 s parce que certains navigateurs ne déclenchent jamais l'événement.
-- Tempo dégressif de 720 ms à 340 ms, mots éditables, presets FR et EN, clavier 1-4.
+- **Les douze langues** sont dans un sélecteur, chargées à la demande.
+- **La musique de fond d'origine** tourne en boucle (`loop = true` sur le
+  `AudioBufferSourceNode`) et **s'atténue le temps de chaque insulte**, sans
+  quoi on ne comprend pas les mots. Rampe à 0,10 puis retour à 0,34.
+- **Le timing est devenu exact.** La durée réelle de l'`AudioBuffer` remplace le
+  garde-fou de 1,6 s qu'imposait `speechSynthesis`.
+- **La synthèse vocale reste en repli**, si un paquet de sons manque. Le panneau
+  d'édition des mots ne sert plus qu'à ça, et le dit.
 
-Quand les sons arriveront, remplacer la couche vocale par un lecteur d'échantillons
-Web Audio : décoder une fois au démarrage dans un `AudioBuffer` par mot, jouer via
-`AudioBufferSourceNode`. La durée réelle du buffer remplacera alors le garde-fou de
-1,6 s, et le timing deviendra exact. Garder la synthèse vocale en repli pour les
-langues dont on n'aurait pas retrouvé les fichiers.
+### Le chargement des sons, et pourquoi c'est fait comme ça
+
+`tools/embarquer_sons.py` fabrique `web/sons/<code>.js`, un par langue, qui pose
+les MP3 en `data:` URI dans `window.SIMON_SONS`. Le jeu les charge en **injectant
+une balise `<script>`**, pas avec `fetch()`.
+
+C'est le point à ne pas « simplifier ». Depuis `file://`, toute requête `fetch()`
+ou XHR est refusée pour cause d'origine opaque, et les modules ES le sont aussi.
+Une balise `<script>` classique vers un chemin relatif, elle, passe. C'est le
+seul montage qui préserve la contrainte du projet : on ouvre le fichier et ça
+marche, sans serveur. Vérifié sous Chromium en `file://`, douze paquets chargés,
+aucune erreur console.
+
+Les paquets pèsent 190 à 295 Ko chacun, 2,8 Mo au total, d'où le chargement à la
+demande plutôt qu'un fichier unique. Ils **ne sont pas commités** : ce sont des
+dérivés des enregistrements d'origine, et ils se régénèrent d'une commande.
+
+```
+python3 tools/fetch_dcr.py --out assets/        # si assets/ est vide
+python3 tools/embarquer_sons.py --tout          # extrait puis embarque
+```
 
 Contraintes du prototype à conserver :
 
@@ -248,9 +293,12 @@ simon-swears/
 │   ├── loading.dcr           # l'écran de sélection de langue
 │   └── simonswears*.dcr      # les douze films, un par langue
 ├── tools/
-│   ├── fetch_dcr.py          # acquisition web + validation, fonctionne
-│   └── dcr_extract.py        # parser Afterburner, fonctionne
-├── out/                      # ressources extraites, non commité
+│   ├── fetch_dcr.py          # acquisition web + validation
+│   ├── dcr_extract.py        # parser Afterburner
+│   ├── extraire_sons.py      # snd  SWA -> mp3 nommés
+│   └── embarquer_sons.py     # mp3 -> paquets web/sons/<code>.js
+├── out/                      # mp3 extraits, non commité
 └── web/
-    └── simon-swears.html     # prototype jouable
+    ├── simon-swears.html     # le jeu, avec les vrais sons
+    └── sons/                 # paquets par langue, non commités
 ```

@@ -183,6 +183,16 @@
   .mots input:focus{outline:2px solid var(--creme); outline-offset:1px}
   .mots .pleine-largeur{grid-column:1 / -1; display:flex; gap:10px; flex-wrap:wrap}
 
+  /* Le sélecteur se fond dans la rangée de boutons. */
+  .cmd-select{display:inline-flex; align-items:center; gap:.5em; padding-right:.5em}
+  .cmd-select .etiq{opacity:.7}
+  .cmd-select select{
+    font:inherit; color:inherit; background:transparent; border:0;
+    padding:.15em .2em; cursor:pointer;
+  }
+  .cmd-select select option{color:#111; background:#fff}
+  .note{margin:0 0 .4em; opacity:.7; font-size:.85em; line-height:1.35}
+
   @media (prefers-reduced-motion: reduce){
     *{animation:none !important; transition:none !important}
   }
@@ -205,11 +215,17 @@
 
 <div class="commandes">
   <button class="cmd primaire" id="demarrer">Commencer</button>
+  <label class="cmd cmd-select" for="langue">
+    <span class="etiq">Langue</span>
+    <select id="langue" aria-label="Langue des insultes"></select>
+  </label>
+  <button class="cmd" id="musique" aria-pressed="true">Couper la musique</button>
   <button class="cmd" id="son" aria-pressed="false">Couper les mots</button>
   <button class="cmd" id="editer" aria-expanded="false">Changer les mots</button>
 </div>
 
 <div class="mots" id="panneauMots">
+  <p class="pleine-largeur note" id="noteMots"></p>
   <label>Vert<input id="mot0" maxlength="24" autocomplete="off"></label>
   <label>Rouge<input id="mot1" maxlength="24" autocomplete="off"></label>
   <label>Jaune<input id="mot2" maxlength="24" autocomplete="off"></label>
@@ -233,12 +249,34 @@
     { freq: 164.81, pitch: 0.72 }
   ];
 
+  // Les quatre emplacements sonores du jeu d'origine, dans l'ordre des touches.
+  // Joe Tree a gardé les mêmes identifiants anglais dans les douze films et n'a
+  // remplacé que l'audio : ce sont donc des emplacements, pas des mots. Quel
+  // emplacement allait à quelle couleur reste indéterminé — le savoir est dans
+  // le bytecode Lingo, qu'on ne décompile pas. Cet ordre est un choix par défaut.
+  var SLOTS_MOTS = ["fuck", "bollocks", "wanker", "bastard"];
+
+  // Les sons d'ambiance, tels que nommés par l'auteur.
+  var SLOT_MUSIQUE = "music";     // la boucle de fond
+  var SLOTS_PERDU  = ["out", "fuckedit"];
+  var SLOTS_BRAVO  = ["welldone", "congrats"];
+  var SLOT_TOUR    = "boing2";
+  var SLOT_FIN     = "wind-down";  // extraire_sons.py normalise les espaces en tirets
+
+  var LANGUES = [
+    ["en","English"], ["fr","Français"], ["cfr","Québécois"], ["de","Deutsch"],
+    ["it","Italiano"], ["nl","Nederlands"], ["pt","Português"], ["rs","Русский"],
+    ["jp","日本語"], ["tk","Türkçe"], ["hb","עברית"], ["n","Norsk"]
+  ];
+
+  // Repli en synthèse vocale, si le paquet de sons d'une langue manque.
   var PRESET_FR = ["Putain", "Merde", "Bordel", "Connard"];
   var PRESET_EN = ["Shit", "Fuck", "Damn", "Bastard"];
   var FINS_FR = ["Perdu, abruti", "T'es nul", "Même pas mal", "Recommence, tanche"];
 
   var mots = PRESET_FR.slice();
   var langue = "fr-FR";
+  var codeLangue = "fr";
 
   /* ---------- DOM ---------- */
   var boitier   = document.getElementById("boitier");
@@ -248,7 +286,10 @@
   var btnStart  = document.getElementById("demarrer");
   var btnSon    = document.getElementById("son");
   var btnEditer = document.getElementById("editer");
+  var btnMusique= document.getElementById("musique");
+  var selLangue = document.getElementById("langue");
   var panneau   = document.getElementById("panneauMots");
+  var noteMots  = document.getElementById("noteMots");
 
   /* ---------- État du jeu ---------- */
   var sequence = [];
@@ -257,6 +298,7 @@
   var enCours  = false;   // partie lancée
   var record   = 0;
   var muet     = false;
+  var sansMusique = false;
 
   /* ---------- Audio ---------- */
   var ctx = null;
@@ -297,6 +339,125 @@
     osc.connect(gain).connect(c.destination);
     osc.start();
     osc.stop(c.currentTime + 0.95);
+  }
+
+  /* ---------- Échantillons d'origine ---------- */
+  // Les MP3 sont ceux du jeu de 2004, recopiés octet pour octet depuis les .dcr
+  // sans réencodage. Les paquets sons/<code>.js les posent en data: URI dans
+  // window.SIMON_SONS ; on les charge en injectant une balise <script> plutôt
+  // qu'avec fetch(), sinon rien ne fonctionne depuis file://.
+
+  var tampons = {};        // code langue -> { slot -> AudioBuffer }
+  var paquetsCharges = {}; // code langue -> Promise
+  var echecPaquet = {};    // code langue -> true si indisponible
+
+  function base64VersOctets(uri){
+    var brut = window.atob(uri.slice(uri.indexOf(",") + 1));
+    var u8 = new Uint8Array(brut.length);
+    for (var i = 0; i < brut.length; i++) u8[i] = brut.charCodeAt(i);
+    return u8.buffer;
+  }
+
+  function decoder(c, ab){
+    // Safari ne renvoie pas de promesse : on enveloppe les deux formes.
+    return new Promise(function(resolve, reject){
+      var p = c.decodeAudioData(ab, resolve, reject);
+      if (p && p.then) p.then(resolve, reject);
+    });
+  }
+
+  function injecter(code){
+    return new Promise(function(resolve, reject){
+      var b = document.createElement("script");
+      b.src = "sons/" + code + ".js";
+      b.onload = resolve;
+      b.onerror = function(){ reject(new Error("paquet sons/" + code + ".js introuvable")); };
+      document.head.appendChild(b);
+    });
+  }
+
+  function chargerLangue(code){
+    if (tampons[code]) return Promise.resolve(tampons[code]);
+    if (paquetsCharges[code]) return paquetsCharges[code];
+
+    var c = audio();
+    if (!c) return Promise.reject(new Error("Web Audio indisponible"));
+
+    var pret = (window.SIMON_SONS && window.SIMON_SONS[code])
+      ? Promise.resolve()
+      : injecter(code);
+
+    paquetsCharges[code] = pret.then(function(){
+      var brut = (window.SIMON_SONS || {})[code];
+      if (!brut) throw new Error("paquet vide pour « " + code + " »");
+      var slots = Object.keys(brut);
+      return Promise.all(slots.map(function(slot){
+        return decoder(c, base64VersOctets(brut[slot]))
+          .then(function(buf){ return [slot, buf]; })
+          .catch(function(){ return null; });  // un son illisible n'annule pas le reste
+      })).then(function(paires){
+        var m = {};
+        paires.forEach(function(pr){ if (pr) m[pr[0]] = pr[1]; });
+        tampons[code] = m;
+        return m;
+      });
+    }).catch(function(err){
+      echecPaquet[code] = true;
+      delete paquetsCharges[code];
+      throw err;
+    });
+    return paquetsCharges[code];
+  }
+
+  function sons(){ return tampons[codeLangue] || null; }
+  function aLesSons(){ var m = sons(); return !!(m && m[SLOTS_MOTS[0]]); }
+
+  // Joue un échantillon. Renvoie sa durée réelle en ms, ou 0 s'il est absent.
+  function jouer(slot, volume){
+    var c = audio(), m = sons();
+    if (!c || !m || !m[slot]) return 0;
+    var src = c.createBufferSource();
+    var g = c.createGain();
+    src.buffer = m[slot];
+    g.gain.value = volume === undefined ? 1 : volume;
+    src.connect(g).connect(c.destination);
+    src.start();
+    return m[slot].duration * 1000;
+  }
+
+  /* ---------- Musique de fond ---------- */
+  // La boucle d'origine, en continu et en retrait pour laisser passer les mots.
+  var srcMusique = null, gainMusique = null;
+
+  function lancerMusique(){
+    var c = audio(), m = sons();
+    if (!c || !m || !m[SLOT_MUSIQUE] || sansMusique || srcMusique) return;
+    srcMusique = c.createBufferSource();
+    gainMusique = c.createGain();
+    srcMusique.buffer = m[SLOT_MUSIQUE];
+    srcMusique.loop = true;               // le morceau est un boucle de 2,3 s
+    gainMusique.gain.value = 0.34;
+    srcMusique.connect(gainMusique).connect(c.destination);
+    srcMusique.start();
+  }
+
+  function arreterMusique(){
+    if (!srcMusique) return;
+    try { srcMusique.stop(); } catch (e) {}
+    srcMusique = null;
+    gainMusique = null;
+  }
+
+  // Baisse la musique le temps d'une insulte, pour qu'on l'entende.
+  function attenuer(ms){
+    if (!gainMusique) return;
+    var c = audio();
+    var t = c.currentTime;
+    gainMusique.gain.cancelScheduledValues(t);
+    gainMusique.gain.setValueAtTime(gainMusique.gain.value, t);
+    gainMusique.gain.linearRampToValueAtTime(0.10, t + 0.06);
+    gainMusique.gain.setValueAtTime(0.10, t + ms / 1000);
+    gainMusique.gain.linearRampToValueAtTime(0.34, t + ms / 1000 + 0.22);
   }
 
   /* ---------- Synthèse vocale ---------- */
@@ -358,16 +519,35 @@
     touches[i].classList.remove("allume");
   }
 
+  // Dit l'insulte de la touche i. Renvoie une promesse résolue à la fin du son.
+  // Avec les échantillons d'origine on connaît la durée exacte du tampon, donc
+  // plus besoin du garde-fou de 1,6 s qu'imposait la synthèse vocale.
+  function prononcer(i){
+    if (muet) return Promise.resolve();
+    if (aLesSons()) {
+      var ms = jouer(SLOTS_MOTS[i], 1);
+      if (ms) { attenuer(ms); return pause(ms); }
+    }
+    return dire(mots[i], PADS[i].pitch);
+  }
+
   function jouerTouche(i, dureeMini){
     allumer(i);
     return Promise.all([
-      dire(mots[i], PADS[i].pitch),
+      prononcer(i),
       pause(dureeMini)
     ]).then(function(){ eteindre(i); });
   }
 
   /* ---------- Déroulé de la partie ---------- */
   function nouveauTour(){
+    // Tous les cinq coups, l'encouragement d'origine.
+    if (sequence.length && sequence.length % 5 === 0) {
+      var bravo = SLOTS_BRAVO[(sequence.length / 5 - 1) % SLOTS_BRAVO.length];
+      attenuer(jouer(bravo, 0.9));
+    } else if (sequence.length) {
+      jouer(SLOT_TOUR, 0.5);
+    }
     sequence.push(Math.floor(Math.random() * 4));
     position = 0;
     compteur.textContent = sequence.length;
@@ -397,7 +577,7 @@
   function appui(i){
     if (!enEcoute) return;
     allumer(i);
-    dire(mots[i], PADS[i].pitch);
+    prononcer(i);
     setTimeout(function(){ eteindre(i); }, 260);
 
     if (sequence[position] !== i) { perdu(); return; }
@@ -415,15 +595,21 @@
     enCours = false;
     verrouiller(true);
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-    buzzer();
+    if (!aLesSons()) buzzer();
     boitier.classList.add("secoue");
     setTimeout(function(){ boitier.classList.remove("secoue"); }, 450);
 
     var score = sequence.length - 1;
     if (score > record) { record = score; sauverRecord(record); }
 
-    var pique = FINS_FR[Math.floor(Math.random() * FINS_FR.length)];
-    setTimeout(function(){ dire(pique, 0.85); }, 320);
+    if (aLesSons()) {
+      jouer(SLOT_FIN, 0.8);
+      var raté = SLOTS_PERDU[Math.floor(Math.random() * SLOTS_PERDU.length)];
+      setTimeout(function(){ attenuer(jouer(raté, 1)); }, 320);
+    } else {
+      var pique = FINS_FR[Math.floor(Math.random() * FINS_FR.length)];
+      setTimeout(function(){ dire(pique, 0.85); }, 320);
+    }
 
     afficher("Raté au coup <strong>" + sequence.length + "</strong>. Score : <strong>" +
              score + "</strong>. Record : <strong>" + record + "</strong>.");
@@ -433,9 +619,11 @@
   function demarrer(){
     audio();
     // iOS exige un premier speak() déclenché par un geste utilisateur.
-    if (!muet && "speechSynthesis" in window) {
+    if (!aLesSons() && !muet && "speechSynthesis" in window) {
       try { window.speechSynthesis.speak(new SpeechSynthesisUtterance(" ")); } catch (e) {}
     }
+    arreterMusique();
+    lancerMusique();   // idem pour l'audio : le navigateur exige le geste
     lireMots();
     sequence = [];
     position = 0;
@@ -480,6 +668,55 @@
     mots = PRESET_EN.slice(); langue = "en-US"; choisirVoix(); ecrireMots();
   });
 
+  /* ---------- Langue ---------- */
+  LANGUES.forEach(function(l){
+    var o = document.createElement("option");
+    o.value = l[0]; o.textContent = l[1];
+    selLangue.appendChild(o);
+  });
+  selLangue.value = codeLangue;
+
+  function majNote(){
+    noteMots.textContent = aLesSons()
+      ? "Les vraies voix de 2004 sont chargées : ces mots ne servent que de repli "
+        + "si le paquet de sons manque."
+      : "Paquet de sons indisponible pour cette langue — synthèse vocale en repli.";
+  }
+
+  function appliquerLangue(code){
+    codeLangue = code;
+    langue = ({ en:"en-US", fr:"fr-FR", cfr:"fr-CA", de:"de-DE", it:"it-IT",
+                nl:"nl-NL", pt:"pt-PT", rs:"ru-RU", jp:"ja-JP", tk:"tr-TR",
+                hb:"he-IL", n:"nb-NO" })[code] || "en-US";
+    choisirVoix();
+    if (code === "fr" || code === "cfr") mots = PRESET_FR.slice();
+    else if (code === "en") mots = PRESET_EN.slice();
+    ecrireMots();
+
+    afficher("Chargement des voix…");
+    return chargerLangue(code).then(function(){
+      if (codeLangue !== code) return;   // l'utilisateur a déjà rechangé
+      majNote();
+      afficher("Voix d'origine chargées. À toi de jouer.");
+      if (enCours) { arreterMusique(); lancerMusique(); }
+    }).catch(function(err){
+      if (codeLangue !== code) return;
+      majNote();
+      afficher("Sons indisponibles (" + err.message + "). Synthèse vocale en repli.");
+    });
+  }
+
+  selLangue.addEventListener("change", function(){ appliquerLangue(selLangue.value); });
+
+  /* ---------- Musique ---------- */
+  btnMusique.addEventListener("click", function(){
+    sansMusique = !sansMusique;
+    btnMusique.setAttribute("aria-pressed", String(!sansMusique));
+    btnMusique.textContent = sansMusique ? "Remettre la musique" : "Couper la musique";
+    if (sansMusique) arreterMusique();
+    else if (enCours) lancerMusique();
+  });
+
   btnEditer.addEventListener("click", function(){
     var ouvert = panneau.classList.toggle("ouvert");
     btnEditer.setAttribute("aria-expanded", String(ouvert));
@@ -493,7 +730,15 @@
     if (muet && "speechSynthesis" in window) window.speechSynthesis.cancel();
   });
 
-  btnStart.addEventListener("click", demarrer);
+  btnStart.addEventListener("click", function(){
+    // Le premier clic débloque l'audio ; on en profite pour charger le paquet.
+    if (!aLesSons() && !echecPaquet[codeLangue]) {
+      appliquerLangue(codeLangue).then(demarrer, demarrer);
+    } else {
+      demarrer();
+    }
+  });
+  majNote();
 
   /* ---------- Entrées ---------- */
   touches.forEach(function(t, i){

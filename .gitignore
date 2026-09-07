@@ -2,3 +2,7 @@ out/
 .DS_Store
 __pycache__/
 *.pyc
+
+# Dérivés des enregistrements d'origine : régénérables depuis assets/ via
+# tools/embarquer_sons.py --tout. Non commités, voir la section Droits.
+web/sons/

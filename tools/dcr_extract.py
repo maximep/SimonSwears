@@ -21,6 +21,15 @@ from collections import Counter
 # Tags susceptibles de contenir du son dans un film Director.
 TAGS_AUDIO = {"snd ", "sndH", "sndS", "ediM"}
 
+# Types de compression déclarés par le chunk Fcdr. Sur Simon Swears, Fcdr
+# annonce deux codecs : 0 = « Macromedia ziplib compression », 1 = SWA, avec
+# la mention « This movie requires the SWA Decompression Xtra ».
+# SWA (Shockwave Audio) est du MP3 : la charge d'un `snd ` en ctype 1 est un
+# en-tête sonore Macintosh suivi de trames MPEG audio, qu'on peut donc écrire
+# telles quelles sans réencodage.
+CTYPE_ZLIB = 0
+CTYPE_SWA = 1
+
 
 class Lecteur:
     """Curseur sur un tampon d'octets, gros-boutiste."""
@@ -170,12 +179,15 @@ class Film:
             if e["tag"].strip("\x00 ") == "ILS":
                 continue
             brut = self._tranche(e)
-            if e["csize"] != e["dsize"]:
+            if e["ctype"] == CTYPE_ZLIB and e["csize"] != e["dsize"]:
                 try:
                     brut = zlib.decompress(brut)
                 except zlib.error as err:
-                    self.erreurs.append("%s#%d : %s" % (e["tag"], e["id"], err))
-                    continue
+                    # On garde les octets bruts : une charge non zlib n'est pas
+                    # une charge perdue. Les `snd ` en SWA passent par ici.
+                    self.erreurs.append(
+                        "%s#%d : zlib refusé (%s), octets bruts conservés"
+                        % (e["tag"], e["id"], err))
             self.blobs[e["id"]] = brut
 
     def _tranche(self, e):
