@@ -1,5 +1,6 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/web/simon-swears.html" }
+    { "source": "/", "destination": "/web/simon-swears.html" },
+    { "source": "/sons/:fichier", "destination": "/web/sons/:fichier" }
   ]
 }
