@@ -35,8 +35,8 @@ Fait :
 
 Pas fait :
 
-- La correspondance emplacement sonore → couleur du Simon d'origine reste
-  **indéterminée**. Voir « Ce qu'on ne sait pas » plus bas.
+- Rien de bloquant. La correspondance couleur → insulte, longtemps la dernière
+  inconnue, est **restituée** : voir « Retrouver la carte des touches ».
 - Deux films, `jp` et `rs`, n'ont pas de `boing2` : le `snd ` correspondant ne
   fait que 82 octets, l'en-tête sans charge. Slot vide chez l'auteur, pas un
   échec d'extraction.
@@ -200,17 +200,74 @@ identifiants anglais et n'a remplacé que l'audio :
 | `out`, `fuckedit` | défaite |
 | `wind-down` | descente de fin de partie |
 
-### Ce qu'on ne sait pas
+### Retrouver la carte des touches
 
-**Quel emplacement allait à quelle couleur.** Aucun bitmap n'est nommé dans le
-cast, et les noms de sons ne portent pas la couleur. L'information est dans le
-bytecode Lingo des `Lscr`, qu'on ne décompile pas — décision assumée, voir plus
-bas. Le remake utilise l'ordre `fuck`, `bollocks`, `wanker`, `bastard` pour
-vert / rouge / jaune / bleu : c'est un **choix par défaut, pas une restitution**.
-La constante `SLOTS_MOTS` en tête du script le dit et se change en une ligne.
+**Quelle insulte va à quelle couleur.** Réglé, et sans décompiler une seule
+instruction Lingo : la réponse était dans les données, pas dans le code.
+`tools/carte_touches.py` refait le raisonnement et le vérifie.
 
-Si quelqu'un retrouve une capture vidéo du jeu d'origine, c'est le moyen le plus
-simple de trancher.
+1. Les quatre comportements de touche sont des `Lscr` qui portent, **en clair
+   dans leurs littéraux**, un nom de son et une étiquette `checkN`. Il suffit de
+   lire les chaînes du blob, aucun désassemblage n'est nécessaire. D'où
+   l'appariement son ↔ numéro de touche.
+2. `VWLB` donne le numéro de trame de chaque étiquette.
+3. `VWSC` déroulé jusqu'à la trame `checkN` montre quel sprite le jeu met en
+   avant : à cette trame, un canal est visible et lui seul.
+4. Le canal porte un numéro de membre, que `CAS*` traduit en ressource `CASt`,
+   laquelle pointe vers un `BITD`.
+5. Le `BITD` décodé donne la couleur du quadrant.
+
+Résultat, **identique dans les douze films** :
+
+| Couleur | Emplacement | Étiquette |
+|---|---|---|
+| vert | `bollocks` | `check2` |
+| rouge | `fuck` | `check1` |
+| jaune | `wanker` | `check3` |
+| bleu | `bastard` | `check4` |
+
+C'est ce qu'applique `SLOTS_MOTS` dans le jeu. Ce n'est plus un choix par défaut.
+
+#### Trois pièges rencontrés
+
+- **`VWLB` contient `nombre + 1` paires** (trame, offset), la dernière servant
+  seulement à borner la chaîne précédente. En lire `nombre` décale tous les
+  libellés d'un cran. L'erreur est discrète : les numéros de trame restent
+  plausibles, et on conclut tranquillement à l'envers. C'est ce qui a fait
+  croire un moment que `check4` n'allumait aucune touche.
+- **Le décor est visible aux quatre trames `checkN`.** Chercher « le canal
+  allumé » en ramène une dizaine. Le bon critère est différentiel : le canal
+  allumé à cette trame **et à aucune des trois autres**.
+- **Le flux de trames de `VWSC` a un en-tête de 20 octets** avant les deltas, et
+  c'est lui qui donne la taille d'un enregistrement de sprite (48 octets ici) et
+  le nombre de canaux. Attaquer les deltas à l'offset 0 ne produit rien.
+
+#### Structure d'un enregistrement de sprite
+
+Établi empiriquement sur ce film, en cherchant des ancres connues — numéros de
+membre et positions plausibles sur un plateau de 500×500 :
+
+```
+0     u8   type            4-5   u16  distribution
+1     u8   encre           6-7   u16  numéro de membre
+2     u8   couleur avant   10-11 u16  renvoi vers une entrée d'intervalle
+3     u8   couleur arrière 12-13 i16  position verticale
+                           14-15 i16  position horizontale
+                           16-17 i16  hauteur
+                           18-19 i16  largeur
+```
+
+Les quatre touches sont toutes ancrées au centre du plateau (250, 250) : c'est
+le point d'accroche de chaque bitmap qui les envoie dans leur coin.
+
+#### Les bitmaps
+
+16 bits par pixel, RGB555, compressés en PackBits. Chaque ligne fait `pitch`
+octets et se lit **en deux plans** : les octets de poids fort de la ligne
+entière, puis les octets de poids faible. Les décoder en supposant des pixels
+entrelacés donne une bouillie plausible mais fausse. Le contrôle qui rassure :
+la sortie PackBits doit faire exactement `pitch × hauteur` octets, ce qui est le
+cas sur les quatre quadrants.
 
 ### Références utiles
 
@@ -220,8 +277,10 @@ simple de trancher.
 - `shockwave.bms` d'aluigi — script QuickBMS qui décrit la décompression d'un `.dcr`.
 - La page Shockwave (Director) du wiki fileformats d'ArchiveTeam.
 
-Ne pas réimplémenter un décompilateur Lingo. Si le bytecode des `Lscr` du jeu
-devient nécessaire pour comprendre la logique, passer par ProjectorRays.
+Le bytecode Lingo n'a pas eu à être désassemblé : les littéraux des `Lscr` se
+lisent tels quels, et la partition portait le reste. Si une question exige un
+jour la logique elle-même, ProjectorRays reste la voie courte — mais commencer
+par regarder les données, elles en disent plus qu'on ne croit.
 
 ## Piste C — le remake web
 
@@ -296,6 +355,7 @@ simon-swears/
 │   ├── fetch_dcr.py          # acquisition web + validation
 │   ├── dcr_extract.py        # parser Afterburner
 │   ├── extraire_sons.py      # snd  SWA -> mp3 nommés
+│   ├── carte_touches.py      # restitue la carte couleur -> insulte
 │   └── embarquer_sons.py     # mp3 -> paquets web/sons/<code>.js
 ├── out/                      # mp3 extraits, non commité
 └── web/

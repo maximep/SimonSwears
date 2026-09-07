@@ -249,12 +249,16 @@
     { freq: 164.81, pitch: 0.72 }
   ];
 
-  // Les quatre emplacements sonores du jeu d'origine, dans l'ordre des touches.
-  // Joe Tree a gardé les mêmes identifiants anglais dans les douze films et n'a
-  // remplacé que l'audio : ce sont donc des emplacements, pas des mots. Quel
-  // emplacement allait à quelle couleur reste indéterminé — le savoir est dans
-  // le bytecode Lingo, qu'on ne décompile pas. Cet ordre est un choix par défaut.
-  var SLOTS_MOTS = ["fuck", "bollocks", "wanker", "bastard"];
+  // Les quatre emplacements sonores du jeu d'origine, dans l'ordre des touches :
+  // vert, rouge, jaune, bleu. Joe Tree a gardé les mêmes identifiants anglais
+  // dans les douze films et n'a remplacé que l'audio : ce sont des emplacements,
+  // pas des mots.
+  //
+  // Cet ordre n'est pas un choix : il est restitué du film d'origine par
+  // tools/carte_touches.py, qui suit les étiquettes checkN de la partition
+  // jusqu'au bitmap de chaque quadrant et en lit la couleur. Identique dans les
+  // douze versions. Relancer l'outil avant de toucher à cette ligne.
+  var SLOTS_MOTS = ["bollocks", "fuck", "wanker", "bastard"];
 
   // Les sons d'ambiance, tels que nommés par l'auteur.
   var SLOT_MUSIQUE = "music";     // la boucle de fond
