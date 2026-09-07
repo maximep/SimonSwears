@@ -300,16 +300,30 @@ Les vrais échantillons ont remplacé la synthèse vocale.
   sans fin.
 - **Partage façon Wordle**, réservé au défi du jour : un score libre ne se
   compare à rien, donc ne se partage pas. Le bouton apparaît en fin de défi et
-  copie le numéro, le score sur 20, la suite en carrés, le record, la langue et
-  le lien. Deux points à ne pas défaire :
+  copie le numéro, le score sur 20, une grille de progression, le record, la
+  langue et le lien. Trois points à ne pas défaire :
+  - **Le partage du défi ne montre jamais la séquence.** C'est le piège du
+    projet, et il a été introduit puis corrigé : au contraire de Wordle, dont
+    la grille montre le *retour* sur les essais, la séquence de Simon **est**
+    la réponse. Peinte en couleurs de touches, elle offrait le défi du jour à
+    qui n'avait pas encore joué — un partage à 20/20 livrait la solution
+    entière. `grilleProgression()` ne dit que jusqu'où le joueur est allé :
+    vert par tour passé, un rouge à l'endroit de la chute, noir au-delà.
+    Toute représentation des touches fuite, **même déguisée** : un simple
+    décompte par couleur réduirait déjà énormément les possibilités.
+  - La partie libre, elle, peut montrer sa suite : elle n'appartient qu'à cette
+    partie et ne prive personne. C'est la seule raison pour laquelle
+    `grille()` existe encore à côté de `grilleProgression()`.
   - `navigator.clipboard` **existe en `file://` mais rejette**, faute de
     contexte sécurisé. Tester sa présence ne suffit donc pas : il faut aussi
     rattraper son échec, sinon le repli `execCommand` ne sert jamais là où il
     est justement nécessaire.
-  - La suite partagée est `sequence.slice(0, score)` : ce que le joueur a
-    réussi, pas le coup qu'il vient de rater.
 - **Historique des parties**, alimenté par `conclure()`, le point de passage
   unique en fin de partie. Conservé en `localStorage`, douze entrées au plus.
+  Il garde les **vraies couleurs**, y compris pour le défi : il ne quitte pas
+  l'écran du joueur, qui connaît déjà la suite qu'il vient de jouer. Choix
+  assumé — une capture d'écran de la page reste donc un moyen de divulguer le
+  défi du jour, là où le texte copié, lui, n'en dit rien.
 
 ### Le défi du jour
 

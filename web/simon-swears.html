@@ -995,16 +995,40 @@
     return lignes.join("\n");
   }
 
+  // Grille de progression : une case par coup du défi, qui dit jusqu'où on est
+  // allé et rien d'autre.
+  //
+  // C'est le point à ne pas défaire. Au contraire de Wordle, dont la grille
+  // montre le *retour* sur les essais, la séquence de Simon **est** la réponse.
+  // La peindre en couleurs de touches, c'est offrir le défi du jour à qui n'a
+  // pas encore joué — un partage à 20/20 livrait la solution complète. Toute
+  // représentation des touches fuite, même déguisée : un simple décompte par
+  // couleur réduirait déjà énormément les possibilités.
+  var CASE_PASSEE = "🟩", CASE_RATEE = "🟥", CASE_HORS = "⬛";
+
+  function grilleProgression(score, total){
+    var lignes = [], ligne = [];
+    for (var i = 0; i < total; i++) {
+      ligne.push(i < score ? CASE_PASSEE : (i === score ? CASE_RATEE : CASE_HORS));
+      if (ligne.length === PAR_LIGNE) { lignes.push(ligne.join("")); ligne = []; }
+    }
+    if (ligne.length) lignes.push(ligne.join(""));
+    return lignes.join("\n");
+  }
+
   function texteDePartage(p){
-    var lignes;
+    var lignes, g;
     if (p.mode === "jour") {
       lignes = ["Simon Swears #" + p.numero + " — " + p.score + "/" + p.total
                 + (p.gagne ? " 🏆" : "")];
+      g = grilleProgression(p.score, p.total);
     } else {
+      // En partie libre il n'y a pas de défi commun à préserver : la suite
+      // tirée n'appartient qu'à cette partie, la montrer ne prive personne.
       lignes = ["Simon Swears — " + p.score +
                 (p.score > 1 ? " insultes d'affilée" : " insulte")];
+      g = grille(p.suite);
     }
-    var g = grille(p.suite);
     if (g) lignes.push(g);
     lignes.push("Record : " + record + " · " + p.langue);
     lignes.push(LIEN);
