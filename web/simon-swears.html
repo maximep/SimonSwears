@@ -238,6 +238,46 @@
   }
   .annonce.visible{opacity:.75}
 
+  /* Bascule de mode : deux onglets dans une même gélule, un seul actif. */
+  .modes{
+    display:inline-flex; gap:4px; padding:4px; margin-bottom:-6px;
+    background:rgba(0,0,0,.3); border-radius:999px;
+    border:1px solid rgba(255,255,255,.07);
+  }
+  .mode{
+    font:inherit; font-size:.92em; color:inherit; cursor:pointer;
+    background:transparent; border:0; border-radius:999px;
+    padding:.5em 1.15em; opacity:.55;
+    transition:background .15s ease, opacity .15s ease;
+  }
+  .mode:hover{opacity:.85}
+  .mode.actif{background:var(--plastique-clair); opacity:1}
+  .mode:focus-visible{outline:2px solid var(--creme); outline-offset:2px}
+
+  /* Historique de la session. */
+  .histo{width:100%; max-width:30em; margin:0 auto; font-size:.9em}
+  .histo-titre{
+    margin:0 0 .8em; font-size:.82em; font-weight:600; text-align:center;
+    opacity:.5; letter-spacing:.09em; text-transform:uppercase;
+  }
+  .histo-liste{
+    list-style:none; margin:0; padding:0;
+    display:flex; flex-direction:column; gap:5px;
+  }
+  .histo-liste li{
+    display:flex; align-items:baseline; gap:.8em;
+    padding:.55em .95em; border-radius:10px;
+    background:rgba(255,255,255,.045);
+  }
+  .histo-liste .quoi{flex:1; min-width:0}
+  .histo-liste .carres{
+    display:block; font-size:.8em; letter-spacing:.05em; opacity:.8;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .histo-liste .pts{font-weight:700; font-variant-numeric:tabular-nums}
+  .histo-liste li.gagne{background:rgba(61,255,160,.12)}
+  .histo-note{margin:1em 0 0; text-align:center; font-size:.85em; opacity:.45}
+
   @media (prefers-reduced-motion: reduce){
     *{animation:none !important; transition:none !important}
   }
@@ -254,6 +294,11 @@
     <div class="logo">SIMON<span>SWEARS</span></div>
     <div class="compteur eteint" id="compteur">--</div>
   </div>
+</div>
+
+<div class="modes" role="group" aria-label="Mode de jeu">
+  <button class="mode actif" id="modeJour" aria-pressed="true">Défi du jour</button>
+  <button class="mode" id="modeLibre" aria-pressed="false">Partie libre</button>
 </div>
 
 <p class="etat" id="etat" role="status" aria-live="polite">Il gueule une suite d'insultes. Tu la répètes.</p>
@@ -285,6 +330,12 @@
     <button class="cmd" id="presetEn">Version anglaise</button>
   </div>
 </div>
+
+<section class="histo" id="histo" hidden>
+  <h2 class="histo-titre">Parties de cette session</h2>
+  <ol class="histo-liste" id="histoListe"></ol>
+  <p class="histo-note">Cet historique vit le temps de l'onglet : il repart de zéro au rechargement.</p>
+</section>
 
 <footer class="tribut">
   <hr>
@@ -366,6 +417,10 @@
   var btnPartage= document.getElementById("partager");
   var blocPartage = document.getElementById("blocPartage");
   var annonce   = document.getElementById("annonce");
+  var btnModeJour = document.getElementById("modeJour");
+  var btnModeLibre= document.getElementById("modeLibre");
+  var histo     = document.getElementById("histo");
+  var histoListe= document.getElementById("histoListe");
 
   /* ---------- État du jeu ---------- */
   var sequence = [];
@@ -375,7 +430,10 @@
   var record   = 0;
   var muet     = false;
   var sansMusique = false;
-  var dernierePartie = null;   // { score, suite, langue } pour le partage
+  var dernierePartie = null;   // la partie figée, pour le partage
+  var mode     = "jour";       // "jour" (défi commun) ou "libre" (sans fin)
+  var defiFait = false;        // le défi du jour a déjà été tenté dans l'onglet
+  var historique = [];         // parties terminées, la plus récente en tête
 
   /* ---------- Audio ---------- */
   var ctx = null;
@@ -616,6 +674,113 @@
     ]).then(function(){ eteindre(i); });
   }
 
+  /* ---------- Défi du jour ---------- */
+  // Vingt insultes, la même suite pour tout le monde à une date donnée. Rien
+  // n'est demandé à un serveur : la suite se déduit de la date, donc deux
+  // joueurs du même jour tombent forcément sur la même.
+  var LONGUEUR_DEFI = 20;
+  var EPOQUE = Date.UTC(2026, 0, 1);   // le défi n° 1
+
+  // Date prise en heure locale, comme Wordle : le défi change à minuit chez le
+  // joueur, pas à une heure imposée par un fuseau lointain.
+  function numeroDuJour(quand){
+    var d = quand || new Date();
+    var jour = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+    return Math.floor((jour - EPOQUE) / 86400000) + 1;
+  }
+
+  // mulberry32, générateur déterministe à graine. Math.random ne convient pas :
+  // il n'accepte pas de graine, donc donnerait une suite différente à chacun.
+  function generateur(graine){
+    var e = graine >>> 0;
+    return function(){
+      e = (e + 0x6D2B79F5) >>> 0;
+      var t = Math.imul(e ^ (e >>> 15), 1 | e);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function suiteDuJour(numero){
+    // On disperse le numéro avant de semer : des jours consécutifs donnent
+    // sinon des graines voisines, et les premiers tirages se ressemblent.
+    var tirer = generateur(Math.imul(numero, 2654435761));
+    var suite = [];
+    for (var i = 0; i < LONGUEUR_DEFI; i++) suite.push(Math.floor(tirer() * 4) % 4);
+    return suite;
+  }
+
+  var numeroDefi = numeroDuJour();
+  var defiDuJour = suiteDuJour(numeroDefi);
+
+  function afficherAccueil(){
+    if (mode === "jour") {
+      afficher(defiFait
+        ? "Défi n° <strong>" + numeroDefi + "</strong> déjà tenté. Reviens demain, "
+          + "ou passe en partie libre."
+        : "Défi n° <strong>" + numeroDefi + "</strong> — <strong>" + LONGUEUR_DEFI
+          + "</strong> insultes, les mêmes pour tout le monde aujourd'hui.");
+    } else {
+      afficher("Il gueule une suite d'insultes. Tu la répètes. Sans fin.");
+    }
+  }
+
+  function appliquerMode(m){
+    if (enCours) return;              // on ne change pas de mode en pleine partie
+    mode = m;
+    btnModeJour.classList.toggle("actif", m === "jour");
+    btnModeLibre.classList.toggle("actif", m === "libre");
+    btnModeJour.setAttribute("aria-pressed", String(m === "jour"));
+    btnModeLibre.setAttribute("aria-pressed", String(m === "libre"));
+    blocPartage.hidden = true;
+    compteur.textContent = "--";
+    compteur.classList.add("eteint");
+    btnStart.textContent = "Commencer";
+    afficherAccueil();
+  }
+
+  btnModeJour.addEventListener("click", function(){ appliquerMode("jour"); });
+  btnModeLibre.addEventListener("click", function(){ appliquerMode("libre"); });
+
+  /* ---------- Historique de la session ---------- */
+  // Volontairement en mémoire seulement : l'historique vit le temps de l'onglet.
+  function enregistrer(partie){
+    historique.unshift(partie);
+    if (historique.length > 12) historique.pop();
+    rendreHistorique();
+  }
+
+  function rendreHistorique(){
+    histo.hidden = historique.length === 0;
+    histoListe.innerHTML = "";
+    historique.forEach(function(p){
+      var li = document.createElement("li");
+      if (p.gagne) li.className = "gagne";
+
+      var quoi = document.createElement("span");
+      quoi.className = "quoi";
+      var titre = document.createElement("span");
+      titre.textContent = p.mode === "jour"
+        ? "Défi n° " + p.numero + (p.gagne ? " — réussi" : "")
+        : "Partie libre";
+      quoi.appendChild(titre);
+      if (p.suite.length) {
+        var carres = document.createElement("span");
+        carres.className = "carres";
+        carres.textContent = p.suite.map(function(i){ return CARRES[i]; }).join("");
+        quoi.appendChild(carres);
+      }
+
+      var pts = document.createElement("span");
+      pts.className = "pts";
+      pts.textContent = p.total ? p.score + "/" + p.total : String(p.score);
+
+      li.appendChild(quoi);
+      li.appendChild(pts);
+      histoListe.appendChild(li);
+    });
+  }
+
   /* ---------- Déroulé de la partie ---------- */
   function nouveauTour(){
     // Tous les cinq coups, l'encouragement d'origine.
@@ -625,9 +790,12 @@
     } else if (sequence.length) {
       jouer(SLOT_TOUR, 0.5);
     }
-    sequence.push(Math.floor(Math.random() * 4));
+    sequence.push(mode === "jour" ? defiDuJour[sequence.length]
+                                  : Math.floor(Math.random() * 4));
     position = 0;
-    compteur.textContent = sequence.length;
+    compteur.textContent = mode === "jour"
+      ? sequence.length + "/" + LONGUEUR_DEFI
+      : sequence.length;
     compteur.classList.remove("eteint");
     rejouerSequence();
   }
@@ -663,8 +831,54 @@
     if (position === sequence.length) {
       enEcoute = false;
       verrouiller(true);
-      setTimeout(nouveauTour, 850);
+      if (mode === "jour" && sequence.length >= LONGUEUR_DEFI) {
+        gagne(dit);            // les vingt sont passées : le défi est bouclé
+      } else {
+        setTimeout(nouveauTour, 850);
+      }
     }
+  }
+
+  // Victoire au défi du jour. Même précaution qu'à la défaite : on laisse la
+  // dernière insulte finir avant de lancer les félicitations.
+  function gagne(dit){
+    enEcoute = false;
+    enCours = false;
+    verrouiller(true);
+
+    var score = LONGUEUR_DEFI;
+    if (score > record) { record = score; sauverRecord(record); }
+    afficher("Défi n° <strong>" + numeroDefi + "</strong> réussi. <strong>"
+             + LONGUEUR_DEFI + "/" + LONGUEUR_DEFI + "</strong>, sans une faute.");
+    btnStart.textContent = "Rejouer";
+
+    conclure({ mode: "jour", numero: numeroDefi, gagne: true,
+               score: score, total: LONGUEUR_DEFI,
+               suite: sequence.slice(), langue: nomLangue(codeLangue) });
+
+    Promise.resolve(dit)
+      .then(function(){ return pause(220); })
+      .then(function(){
+        if (enCours) return;
+        attenuer(jouer("congrats", 1));
+        setTimeout(function(){
+          if (!enCours) attenuer(jouer("welldone", 1));
+        }, 1400);
+      });
+  }
+
+  // Point de passage unique en fin de partie : mémorise, alimente l'historique
+  // et n'ouvre le partage que pour le défi du jour.
+  function conclure(partie){
+    dernierePartie = partie;
+    if (partie.mode === "jour") {
+      defiFait = true;
+      blocPartage.hidden = false;
+      reinitPartage();
+    } else {
+      blocPartage.hidden = true;
+    }
+    enregistrer(partie);
   }
 
   // `dit` est la promesse de l'insulte que le joueur vient de déclencher. On
@@ -682,16 +896,20 @@
     var score = sequence.length - 1;
     if (score > record) { record = score; sauverRecord(record); }
 
-    afficher("Raté au coup <strong>" + sequence.length + "</strong>. Score : <strong>" +
-             score + "</strong>. Record : <strong>" + record + "</strong>.");
+    if (mode === "jour") {
+      afficher("Défi n° <strong>" + numeroDefi + "</strong> : <strong>" + score + "/"
+               + LONGUEUR_DEFI + "</strong>. Raté au coup <strong>"
+               + sequence.length + "</strong>.");
+    } else {
+      afficher("Raté au coup <strong>" + sequence.length + "</strong>. Score : <strong>" +
+               score + "</strong>. Record : <strong>" + record + "</strong>.");
+    }
     btnStart.textContent = "Rejouer";
 
-    // Fige la partie pour le partage : on garde la suite réussie, pas celle
-    // qu'on vient de rater. La séquence sera réinitialisée à la relance.
-    dernierePartie = { score: score, suite: sequence.slice(0, score),
-                       langue: nomLangue(codeLangue) };
-    blocPartage.hidden = false;
-    reinitPartage();
+    // On fige la suite réussie, pas le coup qu'on vient de rater.
+    conclure({ mode: mode, numero: numeroDefi, gagne: false,
+               score: score, total: mode === "jour" ? LONGUEUR_DEFI : 0,
+               suite: sequence.slice(0, score), langue: nomLangue(codeLangue) });
 
     var partie = sequence.length;   // pour ne pas parler par-dessus une relance
     Promise.resolve(dit)
@@ -715,6 +933,16 @@
   }
 
   function demarrer(){
+    // Le défi ne se tente qu'une fois, comme Wordle : sinon le score partagé
+    // ne veut plus rien dire. La partie libre, elle, reste sans limite.
+    if (mode === "jour" && defiFait) {
+      afficherAccueil();
+      // Le message vit dans le bloc de partage : il faut le rouvrir, sinon on
+      // parle dans le vide après un aller-retour par la partie libre.
+      if (dernierePartie && dernierePartie.mode === "jour") blocPartage.hidden = false;
+      annoncer("Le défi du jour est déjà passé. La partie libre t'attend.");
+      return;
+    }
     audio();
     // iOS exige un premier speak() déclenché par un geste utilisateur.
     if (!aLesSons() && !muet && "speechSynthesis" in window) {
@@ -760,8 +988,14 @@
   }
 
   function texteDePartage(p){
-    var lignes = ["Simon Swears — " + p.score +
-                  (p.score > 1 ? " insultes d'affilée" : " insulte")];
+    var lignes;
+    if (p.mode === "jour") {
+      lignes = ["Simon Swears #" + p.numero + " — " + p.score + "/" + p.total
+                + (p.gagne ? " 🏆" : "")];
+    } else {
+      lignes = ["Simon Swears — " + p.score +
+                (p.score > 1 ? " insultes d'affilée" : " insulte")];
+    }
     var g = grille(p.suite);
     if (g) lignes.push(g);
     lignes.push("Record : " + record + " · " + p.langue);
@@ -939,6 +1173,7 @@
     }
   });
   majNote();
+  appliquerMode("jour");   // le défi du jour est ce qu'on propose en arrivant
 
   /* ---------- Entrées ---------- */
   touches.forEach(function(t, i){

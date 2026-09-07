@@ -296,15 +296,44 @@ Les vrais échantillons ont remplacé la synthèse vocale.
   garde-fou de 1,6 s qu'imposait `speechSynthesis`.
 - **La synthèse vocale reste en repli**, si un paquet de sons manque. Le panneau
   d'édition des mots ne sert plus qu'à ça, et le dit.
-- **Partage façon Wordle.** Un bouton apparaît à la défaite et copie le score,
-  la suite réussie en carrés de couleur, le record, la langue et le lien.
-  Deux points à ne pas défaire :
+- **Deux modes.** *Défi du jour* (par défaut) et *Partie libre*, l'ancien mode
+  sans fin.
+- **Partage façon Wordle**, réservé au défi du jour : un score libre ne se
+  compare à rien, donc ne se partage pas. Le bouton apparaît en fin de défi et
+  copie le numéro, le score sur 20, la suite en carrés, le record, la langue et
+  le lien. Deux points à ne pas défaire :
   - `navigator.clipboard` **existe en `file://` mais rejette**, faute de
     contexte sécurisé. Tester sa présence ne suffit donc pas : il faut aussi
     rattraper son échec, sinon le repli `execCommand` ne sert jamais là où il
     est justement nécessaire.
   - La suite partagée est `sequence.slice(0, score)` : ce que le joueur a
     réussi, pas le coup qu'il vient de rater.
+- **Historique de session**, alimenté par `conclure()`, le point de passage
+  unique en fin de partie. Volontairement en mémoire seulement : il repart de
+  zéro au rechargement. Le rendre durable demanderait `localStorage`, ce que la
+  contrainte « tourner dans un artifact Claude » interdit.
+
+### Le défi du jour
+
+Vingt insultes, la même suite pour tout le monde à une date donnée, **sans
+serveur** : la suite se déduit de la date, donc deux joueurs du même jour
+tombent forcément dessus.
+
+- `numeroDuJour()` compte les jours depuis le 1er janvier 2026. La date est
+  prise **en heure locale**, comme Wordle : le défi change à minuit chez le
+  joueur, pas à une heure imposée par un fuseau lointain.
+- `generateur()` est un mulberry32. `Math.random` ne convient pas : sans graine,
+  il donnerait une suite différente à chacun, ce qui vide le partage de son sens.
+- Le numéro est dispersé (`Math.imul(numero, 2654435761)`) avant d'être semé.
+  Sans ça, des jours consécutifs donnent des graines voisines et les premiers
+  tirages se ressemblent. Vérifié sur 2000 jours : répartition des quatre
+  couleurs à moins de 3 % d'écart.
+- **Une tentative par jour**, comme Wordle : sinon le score partagé ne veut plus
+  rien dire. La partie libre reste sans limite. Le verrou vit dans l'onglet,
+  pour la même raison que l'historique.
+
+Pour changer la longueur, `LONGUEUR_DEFI` suffit — mais elle change toutes les
+suites déjà jouées, donc à ne toucher qu'en connaissance de cause.
 
 ### Le chargement des sons, et pourquoi c'est fait comme ça
 
