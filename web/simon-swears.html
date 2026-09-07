@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simon Swears</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --plastique:#16181a;
+    --plastique-clair:#24282b;
+    --moquette:#241f1c;
+    --creme:#e8e2d6;
+    --vert:#0d6b3a;      --vert-on:#3dffa0;
+    --rouge:#96201c;     --rouge-on:#ff5a4d;
+    --jaune:#9c7400;     --jaune-on:#ffdc4a;
+    --bleu:#123a72;      --bleu-on:#4fb0ff;
+    --disque: min(88vw, 62vh, 460px);
+  }
+
+  *{box-sizing:border-box}
+
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:
+      radial-gradient(120% 90% at 50% 12%, #3a322c 0%, var(--moquette) 62%, #14100e 100%);
+    color:var(--creme);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:26px;
+    padding:24px 16px calc(24px + env(safe-area-inset-bottom));
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  /* --- Le boîtier --- */
+  .boitier{
+    position:relative;
+    width:var(--disque);
+    height:var(--disque);
+    border-radius:50%;
+    padding:16px;
+    background:
+      radial-gradient(140% 140% at 30% 10%, #3c4145 0%, var(--plastique) 55%, #0a0b0c 100%);
+    box-shadow:
+      inset 0 2px 3px rgba(255,255,255,.18),
+      inset 0 -6px 14px rgba(0,0,0,.7),
+      0 26px 46px -14px rgba(0,0,0,.85);
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:1fr 1fr;
+    gap:10px;
+    touch-action:manipulation;
+  }
+  .boitier.secoue{animation:secousse .42s cubic-bezier(.36,.07,.19,.97) both}
+  @keyframes secousse{
+    10%,90%{transform:translateX(-3px)}
+    20%,80%{transform:translateX(6px)}
+    30%,50%,70%{transform:translateX(-10px)}
+    40%,60%{transform:translateX(10px)}
+  }
+
+  /* --- Les quatre touches --- */
+  .touche{
+    border:none;
+    margin:0;
+    padding:0;
+    cursor:pointer;
+    position:relative;
+    transition:filter .07s linear, box-shadow .07s linear;
+    box-shadow:inset 0 0 22px rgba(0,0,0,.55);
+    filter:saturate(.85);
+  }
+  .touche:disabled{cursor:default}
+  .touche[data-pad="0"]{background:var(--vert);   border-radius:100% 0 0 0}
+  .touche[data-pad="1"]{background:var(--rouge);  border-radius:0 100% 0 0}
+  .touche[data-pad="2"]{background:var(--jaune);  border-radius:0 0 0 100%}
+  .touche[data-pad="3"]{background:var(--bleu);   border-radius:0 0 100% 0}
+
+  .touche.allume[data-pad="0"]{background:var(--vert-on)}
+  .touche.allume[data-pad="1"]{background:var(--rouge-on)}
+  .touche.allume[data-pad="2"]{background:var(--jaune-on)}
+  .touche.allume[data-pad="3"]{background:var(--bleu-on)}
+  .touche.allume{
+    filter:saturate(1.2) brightness(1.05);
+    box-shadow:inset 0 0 30px rgba(255,255,255,.35), 0 0 40px -6px currentColor;
+  }
+  .touche:focus-visible{outline:3px solid var(--creme); outline-offset:-8px; z-index:2}
+
+  /* --- Le moyeu central --- */
+  .moyeu{
+    position:absolute;
+    top:50%; left:50%;
+    width:44%; height:44%;
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    background:
+      radial-gradient(120% 120% at 32% 14%, #33383c 0%, #17191b 58%, #0b0c0d 100%);
+    box-shadow:0 8px 22px rgba(0,0,0,.75), inset 0 1px 2px rgba(255,255,255,.2);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    pointer-events:none;
+    text-align:center;
+    padding:8px;
+  }
+  .logo{
+    font-family:"Archivo Black", "Arial Black", Impact, sans-serif;
+    font-size:clamp(15px, 4.4vw, 24px);
+    letter-spacing:.06em;
+    line-height:.94;
+    color:var(--creme);
+  }
+  .logo span{display:block; font-size:.5em; letter-spacing:.34em; color:#a09a8e; margin-top:4px}
+  .compteur{
+    font-family:"Archivo Black", "Arial Black", sans-serif;
+    font-variant-numeric:tabular-nums;
+    font-size:clamp(26px, 8vw, 42px);
+    line-height:1;
+    color:#ff6a3d;
+    text-shadow:0 0 14px rgba(255,106,61,.6);
+    margin-top:6px;
+  }
+  .compteur.eteint{color:#3a3532; text-shadow:none}
+
+  /* --- Bandeau d'état --- */
+  .etat{
+    min-height:1.4em;
+    font-size:15px;
+    letter-spacing:.01em;
+    color:#bdb5a7;
+    text-align:center;
+    max-width:34ch;
+  }
+  .etat strong{color:var(--creme); font-weight:600}
+
+  /* --- Commandes --- */
+  .commandes{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center}
+  button.cmd{
+    font:inherit;
+    font-size:15px;
+    color:var(--creme);
+    background:var(--plastique-clair);
+    border:1px solid #3d4348;
+    border-radius:999px;
+    padding:11px 20px;
+    cursor:pointer;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.09), 0 3px 0 #0d0f10;
+  }
+  button.cmd:active{transform:translateY(2px); box-shadow:inset 0 1px 0 rgba(255,255,255,.09), 0 1px 0 #0d0f10}
+  button.cmd:focus-visible{outline:2px solid var(--creme); outline-offset:2px}
+  button.cmd.primaire{background:#c0392b; border-color:#e05a4a; box-shadow:inset 0 1px 0 rgba(255,255,255,.2), 0 3px 0 #7d1f16}
+  button.cmd[aria-pressed="true"]{background:#4a5155; border-color:#6d7579}
+
+  /* --- Panneau des mots --- */
+  .mots{
+    width:min(100%, 440px);
+    display:none;
+    grid-template-columns:repeat(2, 1fr);
+    gap:10px;
+    padding:16px;
+    background:rgba(0,0,0,.3);
+    border:1px solid #3a332c;
+    border-radius:14px;
+  }
+  .mots.ouvert{display:grid}
+  .mots label{display:flex; flex-direction:column; gap:5px; font-size:13px; color:#a89f91}
+  .mots input{
+    font:inherit; font-size:15px;
+    padding:9px 11px;
+    border-radius:8px;
+    border:1px solid #4a423a;
+    background:#151312;
+    color:var(--creme);
+  }
+  .mots input:focus{outline:2px solid var(--creme); outline-offset:1px}
+  .mots .pleine-largeur{grid-column:1 / -1; display:flex; gap:10px; flex-wrap:wrap}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important}
+  }
+</style>
+</head>
+<body>
+
+<div class="boitier" id="boitier">
+  <button class="touche" data-pad="0" aria-label="Touche verte" disabled></button>
+  <button class="touche" data-pad="1" aria-label="Touche rouge" disabled></button>
+  <button class="touche" data-pad="2" aria-label="Touche jaune" disabled></button>
+  <button class="touche" data-pad="3" aria-label="Touche bleue" disabled></button>
+  <div class="moyeu">
+    <div class="logo">SIMON<span>SWEARS</span></div>
+    <div class="compteur eteint" id="compteur">--</div>
+  </div>
+</div>
+
+<p class="etat" id="etat" role="status" aria-live="polite">Il gueule une suite d'insultes. Tu la répètes.</p>
+
+<div class="commandes">
+  <button class="cmd primaire" id="demarrer">Commencer</button>
+  <button class="cmd" id="son" aria-pressed="false">Couper les mots</button>
+  <button class="cmd" id="editer" aria-expanded="false">Changer les mots</button>
+</div>
+
+<div class="mots" id="panneauMots">
+  <label>Vert<input id="mot0" maxlength="24" autocomplete="off"></label>
+  <label>Rouge<input id="mot1" maxlength="24" autocomplete="off"></label>
+  <label>Jaune<input id="mot2" maxlength="24" autocomplete="off"></label>
+  <label>Bleu<input id="mot3" maxlength="24" autocomplete="off"></label>
+  <div class="pleine-largeur">
+    <button class="cmd" id="presetFr">Version française</button>
+    <button class="cmd" id="presetEn">Version anglaise</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- Données des touches ---------- */
+  // Fréquences des quatre notes du Simon d'origine : mi, do#, la, mi grave.
+  var PADS = [
+    { freq: 329.63, pitch: 1.30 },
+    { freq: 277.18, pitch: 1.10 },
+    { freq: 220.00, pitch: 0.90 },
+    { freq: 164.81, pitch: 0.72 }
+  ];
+
+  var PRESET_FR = ["Putain", "Merde", "Bordel", "Connard"];
+  var PRESET_EN = ["Shit", "Fuck", "Damn", "Bastard"];
+  var FINS_FR = ["Perdu, abruti", "T'es nul", "Même pas mal", "Recommence, tanche"];
+
+  var mots = PRESET_FR.slice();
+  var langue = "fr-FR";
+
+  /* ---------- DOM ---------- */
+  var boitier   = document.getElementById("boitier");
+  var touches   = Array.prototype.slice.call(document.querySelectorAll(".touche"));
+  var compteur  = document.getElementById("compteur");
+  var etat      = document.getElementById("etat");
+  var btnStart  = document.getElementById("demarrer");
+  var btnSon    = document.getElementById("son");
+  var btnEditer = document.getElementById("editer");
+  var panneau   = document.getElementById("panneauMots");
+
+  /* ---------- État du jeu ---------- */
+  var sequence = [];
+  var position = 0;
+  var enEcoute = false;   // le joueur peut appuyer
+  var enCours  = false;   // partie lancée
+  var record   = 0;
+  var muet     = false;
+
+  /* ---------- Audio ---------- */
+  var ctx = null;
+  function audio(){
+    if (!ctx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) ctx = new AC();
+    }
+    if (ctx && ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+
+  function ton(freq, duree, type){
+    var c = audio();
+    if (!c) return;
+    var osc = c.createOscillator();
+    var gain = c.createGain();
+    osc.type = type || "triangle";
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.22, c.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + duree / 1000);
+    osc.connect(gain).connect(c.destination);
+    osc.start();
+    osc.stop(c.currentTime + duree / 1000 + 0.05);
+  }
+
+  function buzzer(){
+    var c = audio();
+    if (!c) return;
+    var osc = c.createOscillator();
+    var gain = c.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(180, c.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(55, c.currentTime + 0.85);
+    gain.gain.setValueAtTime(0.25, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.9);
+    osc.connect(gain).connect(c.destination);
+    osc.start();
+    osc.stop(c.currentTime + 0.95);
+  }
+
+  /* ---------- Synthèse vocale ---------- */
+  var voix = null;
+  function choisirVoix(){
+    if (!("speechSynthesis" in window)) return;
+    var dispo = window.speechSynthesis.getVoices() || [];
+    var code = langue.slice(0, 2);
+    voix = null;
+    for (var i = 0; i < dispo.length; i++) {
+      if (dispo[i].lang && dispo[i].lang.toLowerCase().indexOf(code) === 0) { voix = dispo[i]; break; }
+    }
+  }
+  if ("speechSynthesis" in window) {
+    choisirVoix();
+    window.speechSynthesis.onvoiceschanged = choisirVoix;
+  }
+
+  // Renvoie une promesse résolue à la fin de la phrase (ou après un délai de sécurité,
+  // certains navigateurs ne déclenchent jamais onend).
+  function dire(texte, pitch){
+    return new Promise(function(resolve){
+      if (muet || !("speechSynthesis" in window) || !texte) { resolve(); return; }
+      var fini = false;
+      var termine = function(){ if (!fini) { fini = true; resolve(); } };
+      var u = new SpeechSynthesisUtterance(texte);
+      u.lang = langue;
+      if (voix) u.voice = voix;
+      u.rate = 1.05;
+      u.pitch = pitch === undefined ? 1 : pitch;
+      u.volume = 1;
+      u.onend = termine;
+      u.onerror = termine;
+      setTimeout(termine, 1600);
+      try { window.speechSynthesis.speak(u); } catch (e) { termine(); }
+    });
+  }
+
+  /* ---------- Utilitaires ---------- */
+  function pause(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  function tempo(){
+    // 720 ms au premier tour, plancher à 340 ms.
+    return Math.max(340, 720 - (sequence.length - 1) * 32);
+  }
+
+  function verrouiller(v){
+    touches.forEach(function(t){ t.disabled = v; });
+  }
+
+  function afficher(msg){ etat.innerHTML = msg; }
+
+  /* ---------- Animation d'une touche ---------- */
+  function allumer(i){
+    touches[i].classList.add("allume");
+    ton(PADS[i].freq, 300);
+  }
+  function eteindre(i){
+    touches[i].classList.remove("allume");
+  }
+
+  function jouerTouche(i, dureeMini){
+    allumer(i);
+    return Promise.all([
+      dire(mots[i], PADS[i].pitch),
+      pause(dureeMini)
+    ]).then(function(){ eteindre(i); });
+  }
+
+  /* ---------- Déroulé de la partie ---------- */
+  function nouveauTour(){
+    sequence.push(Math.floor(Math.random() * 4));
+    position = 0;
+    compteur.textContent = sequence.length;
+    compteur.classList.remove("eteint");
+    rejouerSequence();
+  }
+
+  function rejouerSequence(){
+    enEcoute = false;
+    verrouiller(true);
+    afficher("Écoute bien.");
+    var t = tempo();
+    var chaine = pause(650);
+    sequence.forEach(function(i){
+      chaine = chaine
+        .then(function(){ return jouerTouche(i, t); })
+        .then(function(){ return pause(Math.max(120, t * 0.32)); });
+    });
+    chaine.then(function(){
+      if (!enCours) return;
+      enEcoute = true;
+      verrouiller(false);
+      afficher("À toi. <strong>" + sequence.length + "</strong> à répéter.");
+    });
+  }
+
+  function appui(i){
+    if (!enEcoute) return;
+    allumer(i);
+    dire(mots[i], PADS[i].pitch);
+    setTimeout(function(){ eteindre(i); }, 260);
+
+    if (sequence[position] !== i) { perdu(); return; }
+
+    position++;
+    if (position === sequence.length) {
+      enEcoute = false;
+      verrouiller(true);
+      setTimeout(nouveauTour, 850);
+    }
+  }
+
+  function perdu(){
+    enEcoute = false;
+    enCours = false;
+    verrouiller(true);
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    buzzer();
+    boitier.classList.add("secoue");
+    setTimeout(function(){ boitier.classList.remove("secoue"); }, 450);
+
+    var score = sequence.length - 1;
+    if (score > record) { record = score; sauverRecord(record); }
+
+    var pique = FINS_FR[Math.floor(Math.random() * FINS_FR.length)];
+    setTimeout(function(){ dire(pique, 0.85); }, 320);
+
+    afficher("Raté au coup <strong>" + sequence.length + "</strong>. Score : <strong>" +
+             score + "</strong>. Record : <strong>" + record + "</strong>.");
+    btnStart.textContent = "Rejouer";
+  }
+
+  function demarrer(){
+    audio();
+    // iOS exige un premier speak() déclenché par un geste utilisateur.
+    if (!muet && "speechSynthesis" in window) {
+      try { window.speechSynthesis.speak(new SpeechSynthesisUtterance(" ")); } catch (e) {}
+    }
+    lireMots();
+    sequence = [];
+    position = 0;
+    enCours = true;
+    btnStart.textContent = "Recommencer";
+    nouveauTour();
+  }
+
+  /* ---------- Record (persisté si l'environnement le permet) ---------- */
+  function sauverRecord(v){
+    try {
+      if (window.storage && window.storage.set) window.storage.set("simon-swears:record", String(v));
+    } catch (e) {}
+  }
+  function chargerRecord(){
+    try {
+      if (window.storage && window.storage.get) {
+        window.storage.get("simon-swears:record").then(function(r){
+          if (r && r.value) record = parseInt(r.value, 10) || 0;
+        }).catch(function(){});
+      }
+    } catch (e) {}
+  }
+  chargerRecord();
+
+  /* ---------- Panneau des mots ---------- */
+  function ecrireMots(){
+    for (var i = 0; i < 4; i++) document.getElementById("mot" + i).value = mots[i];
+  }
+  function lireMots(){
+    for (var i = 0; i < 4; i++) {
+      var v = document.getElementById("mot" + i).value.trim();
+      if (v) mots[i] = v;
+    }
+  }
+  ecrireMots();
+
+  document.getElementById("presetFr").addEventListener("click", function(){
+    mots = PRESET_FR.slice(); langue = "fr-FR"; choisirVoix(); ecrireMots();
+  });
+  document.getElementById("presetEn").addEventListener("click", function(){
+    mots = PRESET_EN.slice(); langue = "en-US"; choisirVoix(); ecrireMots();
+  });
+
+  btnEditer.addEventListener("click", function(){
+    var ouvert = panneau.classList.toggle("ouvert");
+    btnEditer.setAttribute("aria-expanded", String(ouvert));
+    if (!ouvert) lireMots();
+  });
+
+  btnSon.addEventListener("click", function(){
+    muet = !muet;
+    btnSon.setAttribute("aria-pressed", String(muet));
+    btnSon.textContent = muet ? "Remettre les mots" : "Couper les mots";
+    if (muet && "speechSynthesis" in window) window.speechSynthesis.cancel();
+  });
+
+  btnStart.addEventListener("click", demarrer);
+
+  /* ---------- Entrées ---------- */
+  touches.forEach(function(t, i){
+    t.addEventListener("pointerdown", function(e){ e.preventDefault(); appui(i); });
+    t.addEventListener("keydown", function(e){
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); appui(i); }
+    });
+  });
+
+  document.addEventListener("keydown", function(e){
+    var i = ["1","2","3","4"].indexOf(e.key);
+    if (i >= 0 && enEcoute) { e.preventDefault(); appui(i); }
+  });
+})();
+</script>
+</body>
+</html>
