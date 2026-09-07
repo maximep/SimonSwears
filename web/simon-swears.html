@@ -149,6 +149,9 @@
 
   /* --- Bandeau d'état --- */
   .etat{
+    /* Sans ça, la marge de paragraphe du navigateur s'ajoute à l'écart du
+       conteneur et détache la ligne d'état du bouton qu'elle commente. */
+    margin:0;
     min-height:1.4em;
     font-size:15px;
     letter-spacing:.01em;
@@ -301,6 +304,8 @@
   <button class="mode" id="modeLibre" aria-pressed="false">Partie libre</button>
 </div>
 
+<button class="cmd primaire" id="demarrer">Commencer</button>
+
 <p class="etat" id="etat" role="status" aria-live="polite">Il gueule une suite d'insultes. Tu la répètes.</p>
 
 <div class="partage" id="blocPartage" hidden>
@@ -309,7 +314,6 @@
 </div>
 
 <div class="commandes">
-  <button class="cmd primaire" id="demarrer">Commencer</button>
   <label class="cmd cmd-select" for="langue">
     <span class="etiq">Langue</span>
     <select id="langue" aria-label="Langue des insultes"></select>
