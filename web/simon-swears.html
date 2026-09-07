@@ -616,10 +616,10 @@
   function appui(i){
     if (!enEcoute) return;
     allumer(i);
-    prononcer(i);
+    var dit = prononcer(i);
     setTimeout(function(){ eteindre(i); }, 260);
 
-    if (sequence[position] !== i) { perdu(); return; }
+    if (sequence[position] !== i) { perdu(dit); return; }
 
     position++;
     if (position === sequence.length) {
@@ -629,30 +629,44 @@
     }
   }
 
-  function perdu(){
+  // `dit` est la promesse de l'insulte que le joueur vient de déclencher. On
+  // n'enchaîne sur la fin de partie qu'une fois qu'elle est finie : sinon le
+  // mot et la descente de wind-down se jouent l'un sur l'autre et on ne
+  // comprend ni l'un ni l'autre. Le retour visuel, lui, reste immédiat — c'est
+  // la sanction de l'erreur, elle ne doit pas se faire attendre.
+  function perdu(dit){
     enEcoute = false;
     enCours = false;
     verrouiller(true);
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-    if (!aLesSons()) buzzer();
     boitier.classList.add("secoue");
     setTimeout(function(){ boitier.classList.remove("secoue"); }, 450);
 
     var score = sequence.length - 1;
     if (score > record) { record = score; sauverRecord(record); }
 
-    if (aLesSons()) {
-      jouer(SLOT_FIN, 0.8);
-      var raté = SLOTS_PERDU[Math.floor(Math.random() * SLOTS_PERDU.length)];
-      setTimeout(function(){ attenuer(jouer(raté, 1)); }, 320);
-    } else {
-      var pique = FINS_FR[Math.floor(Math.random() * FINS_FR.length)];
-      setTimeout(function(){ dire(pique, 0.85); }, 320);
-    }
-
     afficher("Raté au coup <strong>" + sequence.length + "</strong>. Score : <strong>" +
              score + "</strong>. Record : <strong>" + record + "</strong>.");
     btnStart.textContent = "Rejouer";
+
+    var partie = sequence.length;   // pour ne pas parler par-dessus une relance
+    Promise.resolve(dit)
+      .then(function(){ return pause(200); })   // un souffle avant la sentence
+      .then(function(){
+        if (enCours || sequence.length !== partie) return;
+        if (aLesSons()) {
+          jouer(SLOT_FIN, 0.8);
+          var rate = SLOTS_PERDU[Math.floor(Math.random() * SLOTS_PERDU.length)];
+          setTimeout(function(){
+            if (!enCours && sequence.length === partie) attenuer(jouer(rate, 1));
+          }, 320);
+        } else {
+          buzzer();
+          var pique = FINS_FR[Math.floor(Math.random() * FINS_FR.length)];
+          setTimeout(function(){
+            if (!enCours && sequence.length === partie) dire(pique, 0.85);
+          }, 320);
+        }
+      });
   }
 
   function demarrer(){
