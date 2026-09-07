@@ -23,8 +23,11 @@
 
   *{box-sizing:border-box}
 
-  html,body{height:100%}
+  /* min-height et non height : le contenu doit pouvoir dépasser la fenêtre et
+     la faire défiler, sinon les éléments se font comprimer pour tenir dedans. */
+  html{height:100%}
   body{
+    min-height:100%;
     margin:0;
     background:
       radial-gradient(120% 90% at 50% 12%, #3a322c 0%, var(--moquette) 62%, #14100e 100%);
@@ -44,6 +47,10 @@
     position:relative;
     width:var(--disque);
     height:var(--disque);
+    /* Élément flexible dans une colonne : sans ça il se laisse écraser en
+       hauteur quand la page déborde, et le disque devient une ellipse. */
+    flex:none;
+    aspect-ratio:1;
     border-radius:50%;
     padding:16px;
     background:
