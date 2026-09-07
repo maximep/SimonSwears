@@ -334,7 +334,7 @@
 <section class="histo" id="histo" hidden>
   <h2 class="histo-titre">Parties de cette session</h2>
   <ol class="histo-liste" id="histoListe"></ol>
-  <p class="histo-note">Cet historique vit le temps de l'onglet : il repart de zéro au rechargement.</p>
+  <p class="histo-note" id="histoNote">Conservé sur cet appareil, dans ce navigateur.</p>
 </section>
 
 <footer class="tribut">
@@ -732,7 +732,10 @@
     btnModeLibre.classList.toggle("actif", m === "libre");
     btnModeJour.setAttribute("aria-pressed", String(m === "jour"));
     btnModeLibre.setAttribute("aria-pressed", String(m === "libre"));
-    blocPartage.hidden = true;
+    // Le défi déjà passé garde son partage à portée, même après un aller-retour
+    // par la partie libre ou un rechargement de la page.
+    blocPartage.hidden = !(m === "jour" && defiFait && dernierePartie
+                           && dernierePartie.mode === "jour");
     compteur.textContent = "--";
     compteur.classList.add("eteint");
     btnStart.textContent = "Commencer";
@@ -879,6 +882,7 @@
       blocPartage.hidden = true;
     }
     enregistrer(partie);
+    sauver();
   }
 
   // `dit` est la promesse de l'insulte que le joueur vient de déclencher. On
@@ -1066,22 +1070,72 @@
     });
   });
 
-  /* ---------- Record (persisté si l'environnement le permet) ---------- */
-  function sauverRecord(v){
+  /* ---------- Persistance ---------- */
+  // localStorage peut manquer et peut même **lever à la simple lecture** :
+  // navigation privée, cookies bloqués, iframe sans autorisation. Tout passe
+  // donc par ces deux fonctions, et un échec n'est jamais fatal — le jeu
+  // retombe alors sur la mémoire de l'onglet, comme avant.
+  var CLE = "simon-swears:v1";
+  var MAX_HISTO = 12;
+
+  // Une sonde d'écriture, pas un simple test d'existence : Safari en navigation
+  // privée expose bien localStorage mais refuse d'y écrire.
+  var stockageDispo = (function(){
     try {
-      if (window.storage && window.storage.set) window.storage.set("simon-swears:record", String(v));
-    } catch (e) {}
+      window.localStorage.setItem(CLE + ":essai", "1");
+      window.localStorage.removeItem(CLE + ":essai");
+      return true;
+    } catch (e) { return false; }
+  })();
+
+  function lireStockage(){
+    try {
+      var brut = window.localStorage.getItem(CLE);
+      return brut ? JSON.parse(brut) : null;
+    } catch (e) { return null; }   // indisponible, ou JSON abîmé
   }
-  function chargerRecord(){
+
+  function sauver(){
     try {
-      if (window.storage && window.storage.get) {
-        window.storage.get("simon-swears:record").then(function(r){
-          if (r && r.value) record = parseInt(r.value, 10) || 0;
-        }).catch(function(){});
+      window.localStorage.setItem(CLE, JSON.stringify({
+        version: 1,
+        record: record,
+        historique: historique.slice(0, MAX_HISTO),
+        // Le verrou est daté : sans son numéro, il bloquerait aussi demain.
+        defi: defiFait ? { numero: numeroDefi } : null
+      }));
+    } catch (e) {}                 // quota plein, écriture refusée
+  }
+
+  function sauverRecord(){ sauver(); }
+
+  function restaurer(){
+    var d = lireStockage();
+    if (!d || d.version !== 1) return;
+    if (typeof d.record === "number") record = d.record;
+    if (Array.isArray(d.historique)) {
+      // Filtrage défensif : ces données ont pu être écrites par une version
+      // antérieure, ou trafiquées à la main dans la console.
+      historique = d.historique.filter(function(p){
+        return p && typeof p.score === "number" && Array.isArray(p.suite);
+      }).slice(0, MAX_HISTO);
+    }
+    if (d.defi && d.defi.numero === numeroDefi) {
+      defiFait = true;
+      // Retrouve le résultat du jour pour que le partage reste offert.
+      for (var i = 0; i < historique.length; i++) {
+        if (historique[i].mode === "jour" && historique[i].numero === numeroDefi) {
+          dernierePartie = historique[i];
+          break;
+        }
       }
-    } catch (e) {}
+    }
+    rendreHistorique();
   }
-  chargerRecord();
+
+  document.getElementById("histoNote").textContent = stockageDispo
+    ? "Conservé sur cet appareil, dans ce navigateur."
+    : "Stockage indisponible ici : cet historique repart de zéro au rechargement.";
 
   /* ---------- Panneau des mots ---------- */
   function ecrireMots(){
@@ -1173,6 +1227,7 @@
     }
   });
   majNote();
+  restaurer();             // avant d'afficher : le verrou du jour en dépend
   appliquerMode("jour");   // le défi du jour est ce qu'on propose en arrivant
 
   /* ---------- Entrées ---------- */

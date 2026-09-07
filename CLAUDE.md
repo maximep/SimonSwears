@@ -308,10 +308,8 @@ Les vrais échantillons ont remplacé la synthèse vocale.
     est justement nécessaire.
   - La suite partagée est `sequence.slice(0, score)` : ce que le joueur a
     réussi, pas le coup qu'il vient de rater.
-- **Historique de session**, alimenté par `conclure()`, le point de passage
-  unique en fin de partie. Volontairement en mémoire seulement : il repart de
-  zéro au rechargement. Le rendre durable demanderait `localStorage`, ce que la
-  contrainte « tourner dans un artifact Claude » interdit.
+- **Historique des parties**, alimenté par `conclure()`, le point de passage
+  unique en fin de partie. Conservé en `localStorage`, douze entrées au plus.
 
 ### Le défi du jour
 
@@ -329,11 +327,33 @@ tombent forcément dessus.
   tirages se ressemblent. Vérifié sur 2000 jours : répartition des quatre
   couleurs à moins de 3 % d'écart.
 - **Une tentative par jour**, comme Wordle : sinon le score partagé ne veut plus
-  rien dire. La partie libre reste sans limite. Le verrou vit dans l'onglet,
-  pour la même raison que l'historique.
+  rien dire. La partie libre reste sans limite.
 
 Pour changer la longueur, `LONGUEUR_DEFI` suffit — mais elle change toutes les
 suites déjà jouées, donc à ne toucher qu'en connaissance de cause.
+
+### La persistance
+
+Tout tient dans une clé, `simon-swears:v1` : record, historique, et le verrou du
+défi. Trois points qui ne sont pas décoratifs.
+
+- **Le verrou est daté.** On stocke `{ numero }` et non un simple booléen : sans
+  le numéro, avoir joué une fois bloquerait aussi tous les jours suivants. Au
+  chargement, le verrou ne s'applique que si le numéro stocké est celui du jour.
+- **`localStorage` peut lever à la simple lecture**, pas seulement manquer :
+  navigation privée, cookies bloqués, iframe sans autorisation. D'où le
+  `try`/`catch` systématique, et une **sonde d'écriture** plutôt qu'un test
+  d'existence — Safari en navigation privée expose bien l'objet mais refuse d'y
+  écrire. Un échec n'est jamais fatal : le jeu retombe sur la mémoire de
+  l'onglet et le dit sous l'historique.
+- **Ce qui est relu est filtré.** Ces données ont pu être écrites par une
+  version antérieure ou trafiquées dans la console ; les entrées qui n'ont pas
+  la forme attendue sont écartées.
+
+Vérifié : rechargement après une partie (verrou tenu, historique et partage
+retrouvés), lendemain simulé en vieillissant le numéro stocké (verrou levé,
+historique gardé), et `localStorage` qui lève à tout coup (page jouable, note
+adaptée, aucune erreur).
 
 ### Le chargement des sons, et pourquoi c'est fait comme ça
 
@@ -361,7 +381,10 @@ python3 tools/embarquer_sons.py --tout          # extrait puis embarque
 Contraintes du prototype à conserver :
 
 - Aucune dépendance à installer, aucun build. Un fichier qu'on ouvre.
-- Pas de `localStorage` si le fichier doit tourner dans un artifact Claude.
+- `localStorage` est autorisé — la contrainte « tourner dans un artifact Claude »
+  a été levée, le site déployé étant devenu la cible principale. Mais il reste
+  **facultatif** : tout accès est protégé et le jeu doit rester entièrement
+  jouable quand le stockage est refusé. Voir « La persistance ».
 - Accessible : focus clavier visible, `prefers-reduced-motion` respecté.
 
 ## Conventions
