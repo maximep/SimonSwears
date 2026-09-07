@@ -225,11 +225,16 @@
   .cmd-select select option{color:#111; background:#fff}
   .note{margin:0 0 .4em; opacity:.7; font-size:.85em; line-height:1.35}
 
-  /* Retour du bouton Partager. Réserve sa hauteur en permanence, sinon la page
-     sursaute au moment de la copie. */
+  /* Le partage se range sous le score, dont il découle. Marge négative pour le
+     rapprocher : l'écart de 26px de body l'en éloignerait trop. */
+  .partage{
+    display:flex; flex-direction:column; align-items:center; gap:9px;
+    margin:-12px 0 0;
+  }
+  /* Réserve sa hauteur en permanence, sinon la page sursaute à la copie. */
   .annonce{
-    margin:-14px 0 0; min-height:1.3em; font-size:.86em; opacity:0;
-    transition:opacity .18s ease;
+    margin:0; min-height:1.3em; font-size:.86em; opacity:0;
+    text-align:center; transition:opacity .18s ease;
   }
   .annonce.visible{opacity:.75}
 
@@ -253,6 +258,11 @@
 
 <p class="etat" id="etat" role="status" aria-live="polite">Il gueule une suite d'insultes. Tu la répètes.</p>
 
+<div class="partage" id="blocPartage" hidden>
+  <button class="cmd" id="partager">Partager</button>
+  <p class="annonce" id="annonce" role="status" aria-live="polite"></p>
+</div>
+
 <div class="commandes">
   <button class="cmd primaire" id="demarrer">Commencer</button>
   <label class="cmd cmd-select" for="langue">
@@ -262,9 +272,7 @@
   <button class="cmd" id="musique" aria-pressed="true">Couper la musique</button>
   <button class="cmd" id="son" aria-pressed="false">Couper les mots</button>
   <button class="cmd" id="editer" aria-expanded="false">Changer les mots</button>
-  <button class="cmd" id="partager" hidden>Partager</button>
 </div>
-<p class="annonce" id="annonce" role="status" aria-live="polite"></p>
 
 <div class="mots" id="panneauMots">
   <p class="pleine-largeur note" id="noteMots"></p>
@@ -356,6 +364,7 @@
   var panneau   = document.getElementById("panneauMots");
   var noteMots  = document.getElementById("noteMots");
   var btnPartage= document.getElementById("partager");
+  var blocPartage = document.getElementById("blocPartage");
   var annonce   = document.getElementById("annonce");
 
   /* ---------- État du jeu ---------- */
@@ -681,7 +690,7 @@
     // qu'on vient de rater. La séquence sera réinitialisée à la relance.
     dernierePartie = { score: score, suite: sequence.slice(0, score),
                        langue: nomLangue(codeLangue) };
-    btnPartage.hidden = false;
+    blocPartage.hidden = false;
     reinitPartage();
 
     var partie = sequence.length;   // pour ne pas parler par-dessus une relance
@@ -719,7 +728,7 @@
     enCours = true;
     btnStart.textContent = "Recommencer";
     // Le résultat affiché n'est plus le bon dès qu'une partie reprend.
-    btnPartage.hidden = true;
+    blocPartage.hidden = true;
     reinitPartage();
     nouveauTour();
   }
