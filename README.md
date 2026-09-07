@@ -48,9 +48,13 @@ serveur à lancer : le jeu est un fichier HTML qu'on ouvre.
 ## Droits
 
 Les enregistrements et les images sont l'œuvre de **Joe Tree / Rocket Visuals
-Limited**. Ils ne sont **pas** dans ce dépôt : `assets/*.dcr` et les paquets de
-sons générés sont ignorés par git, et `fetch_dcr.py` va les chercher chez
-l'auteur. Ce dépôt ne contient que du code.
+Limited**. Les voix et la musique sont incluses ici (`web/sons/`) pour que le
+jeu soit jouable : Shockwave est mort en 2019, et ces enregistrements n'existent
+plus nulle part ailleurs sous une forme qui tourne. C'est un dépôt de
+préservation, pas une appropriation — l'auteur est crédité dans le jeu lui-même.
 
-Remake non officiel, à but de préservation. Si l'auteur souhaite qu'on cesse,
-il suffit de le demander.
+Les `.dcr` d'origine, eux, ne sont pas dans le dépôt : `fetch_dcr.py` va les
+chercher chez l'auteur, dont le serveur répond toujours.
+
+Remake non officiel. **Si Joe Tree ou Rocket Visuals souhaite qu'on retire ces
+sons, il suffit de le demander : ce sera fait sans discuter.**

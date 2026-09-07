@@ -344,11 +344,19 @@ Contraintes du prototype à conserver :
 
 ## Droits
 
-Les enregistrements et les images appartiennent à Joe Tree / Rocket Visuals Limited.
-L'extraction pour archivage et étude personnelle est une chose, la republication en
-est une autre. Pour toute version publiée en ligne : soit obtenir l'accord de
-l'auteur, soit réenregistrer les voix. Les sons extraits servent de référence de
-timing et de ton, pas de matière première à redistribuer telle quelle.
+Les enregistrements et les images appartiennent à Joe Tree / Rocket Visuals
+Limited. Le remake les utilise tels quels et les publie avec lui : choix assumé
+de préservation, pris en connaissance de cause. Le jeu est mort avec Shockwave
+en 2019 et ces voix n'existent plus nulle part ailleurs sous une forme jouable.
+
+Ce que ça implique en pratique :
+
+- **L'auteur est crédité là où on joue**, en pied de page du jeu et pas
+  seulement dans un fichier de licence : nom, société, année, lien vers son site.
+- **Rien n'est présenté comme nôtre.** Le remake est explicitement non officiel.
+- **Retrait sur simple demande.** Si Joe Tree ou Rocket Visuals le souhaite, on
+  retire les sons sans discuter. La mention figure dans le jeu et dans le README.
+- Les `.dcr` d'origine, eux, restent hors du dépôt : voir Conventions.
 
 ## Arborescence
 
