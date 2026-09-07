@@ -6,3 +6,7 @@ __pycache__/
 # Dérivés des enregistrements d'origine : régénérables depuis assets/ via
 # tools/embarquer_sons.py --tout. Non commités, voir la section Droits.
 web/sons/
+
+# Les films d'origine : l'œuvre de Joe Tree, pas notre code. Hors du dépôt.
+# tools/fetch_dcr.py les récupère depuis le serveur d'origine.
+assets/*.dcr

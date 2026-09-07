@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Simon Swears</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2064%2064%27%3E%3Ccircle%20cx%3D%2732%27%20cy%3D%2732%27%20r%3D%2731%27%20fill%3D%27%2324282b%27%2F%3E%3Cpath%20d%3D%27M31%2031%2031%204A27%2027%200%200%200%204%2031Z%27%20fill%3D%27%231a9e57%27%2F%3E%3Cpath%20d%3D%27M33%2031%2033%204A27%2027%200%200%201%2060%2031Z%27%20fill%3D%27%23c62d27%27%2F%3E%3Cpath%20d%3D%27M31%2033%2031%2060A27%2027%200%200%201%204%2033Z%27%20fill%3D%27%23d6a000%27%2F%3E%3Cpath%20d%3D%27M33%2033%2033%2060A27%2027%200%200%200%2060%2033Z%27%20fill%3D%27%231d5aa8%27%2F%3E%3Ccircle%20cx%3D%2732%27%20cy%3D%2732%27%20r%3D%2711%27%20fill%3D%27%2316181a%27%2F%3E%3C%2Fsvg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
@@ -183,6 +184,21 @@
   .mots input:focus{outline:2px solid var(--creme); outline-offset:1px}
   .mots .pleine-largeur{grid-column:1 / -1; display:flex; gap:10px; flex-wrap:wrap}
 
+  /* Tribut : présent, mais il ne dispute pas la vedette au jeu. */
+  .tribut{
+    max-width:34em; margin:2.4em auto 1.6em; padding:0 1.2em 2em;
+    text-align:center; font-size:.86em; line-height:1.6; opacity:.62;
+  }
+  .tribut strong{font-weight:600; opacity:.9}
+  .tribut a{color:inherit; text-underline-offset:.2em}
+  .tribut a:hover{opacity:1}
+  .tribut hr{
+    border:0; height:1px; width:3.5em; margin:0 auto 1.4em;
+    background:currentColor; opacity:.25;
+  }
+  .tribut p{margin:0 0 .8em}
+  .tribut .fin{opacity:.75; font-size:.94em}
+
   /* Le sélecteur se fond dans la rangée de boutons. */
   .cmd-select{display:inline-flex; align-items:center; gap:.5em; padding-right:.5em}
   .cmd-select .etiq{opacity:.7}
@@ -235,6 +251,25 @@
     <button class="cmd" id="presetEn">Version anglaise</button>
   </div>
 </div>
+
+<footer class="tribut">
+  <hr>
+  <p><strong>Simon Swears</strong> est un jeu de <strong>Joe Tree</strong>,
+  publié sur <a href="https://www.diyjoe.com/" rel="noopener">diyjoe.com</a>
+  vers 2004 sous <strong>Rocket Visuals Limited</strong>. Un Simon qui jure, en
+  douze langues, chacune enregistrée séparément — dans un fichier Shockwave de
+  350 Ko, à l'époque du modem.</p>
+
+  <p>Shockwave est mort en 2019 et le jeu est devenu injouable. Les voix que tu
+  entends ici sont <strong>les siennes</strong>, extraites de ses fichiers
+  d'origine et recopiées sans réencodage. Tout ce qui a du charme dans cette
+  page vient de lui ; le reste n'est que du rafistolage pour que ça tourne
+  encore dans un navigateur.</p>
+
+  <p class="fin">Enregistrements et images © Joe Tree / Rocket Visuals Limited.
+  Remake non officiel, à but de préservation. Si l'auteur souhaite qu'on retire
+  ses sons, il suffit de le demander.</p>
+</footer>
 
 <script>
 (function(){

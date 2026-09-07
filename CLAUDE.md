@@ -100,8 +100,9 @@ Deux notes qui corrigent des suppositions antérieures :
   que `loading.dcr`, en 2004 et 2006 : les crawlers ne suivent pas les appels
   `gotoNetMovie`, qui sont du Lingo. Les douze films n'y sont pas.
 
-Le serveur peut disparaître à tout moment. Les `.dcr` d'`assets/` sont désormais
-la seule copie connue et doivent être commités.
+Le serveur peut disparaître à tout moment, et `assets/` est la seule copie
+connue — **il faut en garder une sauvegarde hors du dépôt**. Ces fichiers ne
+sont pas commités : voir Conventions.
 
 Reste ouvert : **contacter Joe Tree / Rocket Visuals Limited** pour la question
 des droits, voir plus bas.
@@ -330,8 +331,14 @@ Contraintes du prototype à conserver :
 - Python 3 pour l'outillage, bibliothèque standard uniquement autant que possible.
   `zlib` et `struct` suffisent pour le parsing.
 - Les binaires extraits vont dans `out/`, jamais commités.
-- Les `.dcr` d'origine vont dans `assets/`, commités : ce sont des pièces d'archive
-  et ils sont petits.
+- **Les `.dcr` d'origine restent hors du dépôt.** Le dépôt public ne contient que
+  du code : outils, jeu, documentation. Les douze films sont l'œuvre de Joe Tree,
+  et les commiter reviendrait à la republier — un dépôt local et un dépôt GitHub
+  public ne sont pas la même chose, et l'historique Git survit aux forks.
+  `tools/fetch_dcr.py` les récupère en une commande, donc on ne perd rien.
+- Un contributeur part de zéro ainsi :
+  `python3 tools/fetch_dcr.py --out assets/` puis
+  `python3 tools/embarquer_sons.py --tout`.
 - Un échec de parsing doit dire **quelle ressource** et **pourquoi**, pas remonter
   une exception nue.
 
@@ -348,7 +355,7 @@ timing et de ton, pas de matière première à redistribuer telle quelle.
 ```
 simon-swears/
 ├── CLAUDE.md
-├── assets/
+├── assets/                   # les treize .dcr, non commités
 │   ├── loading.dcr           # l'écran de sélection de langue
 │   └── simonswears*.dcr      # les douze films, un par langue
 ├── tools/
