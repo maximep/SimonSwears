@@ -296,6 +296,15 @@ Les vrais échantillons ont remplacé la synthèse vocale.
   garde-fou de 1,6 s qu'imposait `speechSynthesis`.
 - **La synthèse vocale reste en repli**, si un paquet de sons manque. Le panneau
   d'édition des mots ne sert plus qu'à ça, et le dit.
+- **Partage façon Wordle.** Un bouton apparaît à la défaite et copie le score,
+  la suite réussie en carrés de couleur, le record, la langue et le lien.
+  Deux points à ne pas défaire :
+  - `navigator.clipboard` **existe en `file://` mais rejette**, faute de
+    contexte sécurisé. Tester sa présence ne suffit donc pas : il faut aussi
+    rattraper son échec, sinon le repli `execCommand` ne sert jamais là où il
+    est justement nécessaire.
+  - La suite partagée est `sequence.slice(0, score)` : ce que le joueur a
+    réussi, pas le coup qu'il vient de rater.
 
 ### Le chargement des sons, et pourquoi c'est fait comme ça
 
@@ -311,8 +320,9 @@ marche, sans serveur. Vérifié sous Chromium en `file://`, douze paquets charg�
 aucune erreur console.
 
 Les paquets pèsent 190 à 295 Ko chacun, 2,8 Mo au total, d'où le chargement à la
-demande plutôt qu'un fichier unique. Ils **ne sont pas commités** : ce sont des
-dérivés des enregistrements d'origine, et ils se régénèrent d'une commande.
+demande plutôt qu'un fichier unique. Ils **sont commités**, pour que le jeu
+déployé ait ses vraies voix — voir Droits. Ils se régénèrent quand même d'une
+commande si `assets/` est là :
 
 ```
 python3 tools/fetch_dcr.py --out assets/        # si assets/ est vide
@@ -375,5 +385,5 @@ simon-swears/
 ├── out/                      # mp3 extraits, non commité
 └── web/
     ├── simon-swears.html     # le jeu, avec les vrais sons
-    └── sons/                 # paquets par langue, non commités
+    └── sons/                 # paquets par langue, commités
 ```

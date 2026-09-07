@@ -24,13 +24,22 @@
   *{box-sizing:border-box}
 
   /* min-height et non height : le contenu doit pouvoir dépasser la fenêtre et
-     la faire défiler, sinon les éléments se font comprimer pour tenir dedans. */
-  html{height:100%}
+     la faire défiler, sinon les éléments se font comprimer pour tenir dedans.
+
+     La couleur de fin du dégradé est portée par html, et ce n'est pas
+     décoratif. Tant que html est transparent, c'est le fond de body qui est
+     propagé au canvas — mais il reste calé sur la boîte de html, haute de 100%
+     seulement, et se répète en dessous : une couture visible apparaît sous le
+     pied de page dès que la page défile. En donnant un fond à html, c'est lui
+     qui remplit le canvas, et le dégradé de body se peint sagement dans la
+     boîte de body, sur toute sa hauteur réelle. */
+  html{height:100%; background:#14100e}
   body{
     min-height:100%;
     margin:0;
     background:
-      radial-gradient(120% 90% at 50% 12%, #3a322c 0%, var(--moquette) 62%, #14100e 100%);
+      radial-gradient(120% 90% at 50% 12%, #3a322c 0%, var(--moquette) 62%, #14100e 100%)
+      no-repeat;
     color:var(--creme);
     font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     display:flex;
@@ -216,6 +225,14 @@
   .cmd-select select option{color:#111; background:#fff}
   .note{margin:0 0 .4em; opacity:.7; font-size:.85em; line-height:1.35}
 
+  /* Retour du bouton Partager. Réserve sa hauteur en permanence, sinon la page
+     sursaute au moment de la copie. */
+  .annonce{
+    margin:-14px 0 0; min-height:1.3em; font-size:.86em; opacity:0;
+    transition:opacity .18s ease;
+  }
+  .annonce.visible{opacity:.75}
+
   @media (prefers-reduced-motion: reduce){
     *{animation:none !important; transition:none !important}
   }
@@ -245,7 +262,9 @@
   <button class="cmd" id="musique" aria-pressed="true">Couper la musique</button>
   <button class="cmd" id="son" aria-pressed="false">Couper les mots</button>
   <button class="cmd" id="editer" aria-expanded="false">Changer les mots</button>
+  <button class="cmd" id="partager" hidden>Partager</button>
 </div>
+<p class="annonce" id="annonce" role="status" aria-live="polite"></p>
 
 <div class="mots" id="panneauMots">
   <p class="pleine-largeur note" id="noteMots"></p>
@@ -336,6 +355,8 @@
   var selLangue = document.getElementById("langue");
   var panneau   = document.getElementById("panneauMots");
   var noteMots  = document.getElementById("noteMots");
+  var btnPartage= document.getElementById("partager");
+  var annonce   = document.getElementById("annonce");
 
   /* ---------- État du jeu ---------- */
   var sequence = [];
@@ -345,6 +366,7 @@
   var record   = 0;
   var muet     = false;
   var sansMusique = false;
+  var dernierePartie = null;   // { score, suite, langue } pour le partage
 
   /* ---------- Audio ---------- */
   var ctx = null;
@@ -655,6 +677,13 @@
              score + "</strong>. Record : <strong>" + record + "</strong>.");
     btnStart.textContent = "Rejouer";
 
+    // Fige la partie pour le partage : on garde la suite réussie, pas celle
+    // qu'on vient de rater. La séquence sera réinitialisée à la relance.
+    dernierePartie = { score: score, suite: sequence.slice(0, score),
+                       langue: nomLangue(codeLangue) };
+    btnPartage.hidden = false;
+    reinitPartage();
+
     var partie = sequence.length;   // pour ne pas parler par-dessus une relance
     Promise.resolve(dit)
       .then(function(){ return pause(200); })   // un souffle avant la sentence
@@ -689,8 +718,110 @@
     position = 0;
     enCours = true;
     btnStart.textContent = "Recommencer";
+    // Le résultat affiché n'est plus le bon dès qu'une partie reprend.
+    btnPartage.hidden = true;
+    reinitPartage();
     nouveauTour();
   }
+
+  /* ---------- Partage de la dernière partie ---------- */
+  // Un carré par couleur, dans l'ordre des touches : vert, rouge, jaune, bleu.
+  var CARRES = ["🟩", "🟥", "🟨", "🟦"];
+  var LIEN = "https://simon-swears.vercel.app";
+  var PAR_LIGNE = 10;      // au-delà, la suite devient illisible dans un message
+  var MAX_CARRES = 60;     // un score de 100 ne tient dans aucun champ de texte
+
+  function nomLangue(code){
+    for (var i = 0; i < LANGUES.length; i++) {
+      if (LANGUES[i][0] === code) return LANGUES[i][1];
+    }
+    return code;
+  }
+
+  function grille(suite){
+    var coupe = suite.slice(0, MAX_CARRES);
+    var lignes = [];
+    for (var i = 0; i < coupe.length; i += PAR_LIGNE) {
+      lignes.push(coupe.slice(i, i + PAR_LIGNE).map(function(p){
+        return CARRES[p];
+      }).join(""));
+    }
+    if (suite.length > MAX_CARRES) lignes.push("…");
+    return lignes.join("\n");
+  }
+
+  function texteDePartage(p){
+    var lignes = ["Simon Swears — " + p.score +
+                  (p.score > 1 ? " insultes d'affilée" : " insulte")];
+    var g = grille(p.suite);
+    if (g) lignes.push(g);
+    lignes.push("Record : " + record + " · " + p.langue);
+    lignes.push(LIEN);
+    return lignes.join("\n");
+  }
+
+  // navigator.clipboard exige un contexte sécurisé. En file://, où le jeu doit
+  // aussi tourner, l'API est bien présente mais **rejette** : se contenter de
+  // tester son existence ne suffit pas, il faut aussi rattraper son échec.
+  // D'où le repli par textarea + execCommand, obsolète mais seul disponible là.
+  function copier(texte){
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(texte).catch(function(){
+        return copieDeSecours(texte);
+      });
+    }
+    return copieDeSecours(texte);
+  }
+
+  function copieDeSecours(texte){
+    return new Promise(function(resolve, reject){
+      var zone = document.createElement("textarea");
+      zone.value = texte;
+      zone.setAttribute("readonly", "");
+      zone.style.position = "fixed";
+      zone.style.top = "-1000px";
+      zone.style.opacity = "0";
+      document.body.appendChild(zone);
+      zone.select();
+      zone.setSelectionRange(0, texte.length);
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      document.body.removeChild(zone);
+      ok ? resolve() : reject(new Error("copie refusée par le navigateur"));
+    });
+  }
+
+  var minuterieAnnonce = null;
+  function annoncer(msg){
+    annonce.textContent = msg;
+    annonce.classList.add("visible");
+    clearTimeout(minuterieAnnonce);
+    minuterieAnnonce = setTimeout(function(){
+      annonce.classList.remove("visible");
+    }, 3200);
+  }
+
+  function reinitPartage(){
+    btnPartage.textContent = "Partager";
+    annonce.classList.remove("visible");
+    clearTimeout(minuterieAnnonce);
+  }
+
+  btnPartage.addEventListener("click", function(){
+    if (!dernierePartie) return;
+    var texte = texteDePartage(dernierePartie);
+    copier(texte).then(function(){
+      btnPartage.textContent = "Copié !";
+      annoncer("Résultat copié — il n'y a plus qu'à coller.");
+      setTimeout(reinitPartage, 2600);
+    }).catch(function(){
+      // Copie refusée : on met le texte sous les yeux plutôt que d'échouer
+      // sans rien dire. Le panneau des mots sert déjà de zone dépliable.
+      annoncer("Copie refusée par le navigateur. Le voici, à sélectionner :\n"
+               + texte);
+      annonce.style.whiteSpace = "pre-line";
+    });
+  });
 
   /* ---------- Record (persisté si l'environnement le permet) ---------- */
   function sauverRecord(v){
