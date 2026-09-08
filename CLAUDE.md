@@ -324,10 +324,15 @@ Les vrais échantillons ont remplacé la synthèse vocale.
   l'écran du joueur, qui connaît déjà la suite qu'il vient de jouer. Choix
   assumé — une capture d'écran de la page reste donc un moyen de divulguer le
   défi du jour, là où le texte copié, lui, n'en dit rien.
-- **Bouton de soutien**, sous les réglages, en jaune Buy Me a Coffee : le seul
-  élément vraiment saturé de la page, donc le seul qu'on ne puisse pas manquer.
-  Il ne s'affiche **que si `LIEN_CAFE` porte une vraie adresse** ; tant que la
-  constante contient `A-REMPLACER`, le bouton reste masqué. Un lien de don qui
+- **Bouton de soutien** vers Ko-fi, sous les réglages. Au **bleu** de la marque
+  et non à son corail : essayé en corail, il ressortait plus vif que le bouton
+  *Commencer* placé juste au-dessus, et les deux pastilles rouges se lisaient
+  comme des jumelles — l'action principale du jeu se faisait voler la vedette
+  par un lien de don. Le bleu s'oppose au brun du fond et ne ressemble à rien
+  d'autre sur la page. Texte sombre et non blanc : sur un cyan aussi clair, le
+  blanc tombe sous le seuil de contraste lisible.
+  Il ne s'affiche **que si `LIEN_CAFE` porte une vraie adresse** ; si la
+  constante repasse à `A-REMPLACER`, le bouton se masque. Un lien de don qui
   tombe à côté ne coûte pas qu'un 404 : sur une adresse habitée par quelqu'un
   d'autre, ce sont les dons qui partent chez lui.
 
