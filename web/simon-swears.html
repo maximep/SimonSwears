@@ -281,6 +281,23 @@
   .histo-liste li.gagne{background:rgba(61,255,160,.12)}
   .histo-note{margin:1em 0 0; text-align:center; font-size:.85em; opacity:.45}
 
+  /* Bouton de soutien. Le jaune de la marque est le seul élément vraiment
+     saturé de la page : c'est précisément ce qui le rend repérable sur ce
+     fond sombre, et il ne dispute la vedette à aucune touche du jeu. */
+  .cafe{
+    display:inline-flex; align-items:center; gap:.55em;
+    padding:.72em 1.4em; border-radius:999px;
+    background:#ffdd00; color:#141414;
+    font:inherit; font-size:.98rem; font-weight:700;
+    text-decoration:none;
+    box-shadow:0 10px 22px -12px rgba(255,221,0,.75);
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .cafe:hover{transform:translateY(-1px); box-shadow:0 14px 26px -12px rgba(255,221,0,.9)}
+  .cafe:active{transform:translateY(0)}
+  .cafe:focus-visible{outline:2px solid var(--creme); outline-offset:3px}
+  .cafe .tasse{font-size:1.15em; line-height:1}
+
   @media (prefers-reduced-motion: reduce){
     *{animation:none !important; transition:none !important}
   }
@@ -334,6 +351,11 @@
     <button class="cmd" id="presetEn">Version anglaise</button>
   </div>
 </div>
+
+<a class="cafe" id="cafe" href="#" target="_blank" rel="noopener" hidden>
+  <span class="tasse" aria-hidden="true">☕</span>
+  <span>Buy me a coffee</span>
+</a>
 
 <section class="histo" id="histo" hidden>
   <h2 class="histo-titre">Parties de cette session</h2>
@@ -973,6 +995,12 @@
   // Un carré par couleur, dans l'ordre des touches : vert, rouge, jaune, bleu.
   var CARRES = ["🟩", "🟥", "🟨", "🟦"];
   var LIEN = "https://simon-swears.vercel.app";
+
+  // Bouton de soutien. Mettre ici l'adresse réelle pour l'afficher : tant que
+  // le pseudo reste celui-ci, le bouton est masqué. Mieux vaut pas de bouton
+  // qu'un lien de don menant à une page inexistante — ou, pire, à celle de
+  // quelqu'un d'autre, qui encaisserait à la place.
+  var LIEN_CAFE = "https://www.buymeacoffee.com/A-REMPLACER";
   var PAR_LIGNE = 10;      // au-delà, la suite devient illisible dans un message
   var MAX_CARRES = 60;     // un score de 100 ne tient dans aucun champ de texte
 
@@ -1254,6 +1282,14 @@
       demarrer();
     }
   });
+  // Le bouton n'apparaît qu'une fois l'adresse renseignée. Voir LIEN_CAFE.
+  (function(){
+    var lien = document.getElementById("cafe");
+    if (!lien || LIEN_CAFE.indexOf("A-REMPLACER") >= 0) return;
+    lien.href = LIEN_CAFE;
+    lien.hidden = false;
+  })();
+
   majNote();
   restaurer();             // avant d'afficher : le verrou du jour en dépend
   appliquerMode("jour");   // le défi du jour est ce qu'on propose en arrivant
