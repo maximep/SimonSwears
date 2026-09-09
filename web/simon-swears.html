@@ -422,7 +422,12 @@
   var LANGUES = [
     ["en","English"], ["fr","Français"], ["cfr","Québécois"], ["de","Deutsch"],
     ["it","Italiano"], ["nl","Nederlands"], ["pt","Português"], ["rs","Русский"],
-    ["jp","日本語"], ["tk","Türkçe"], ["hb","עברית"], ["n","Norsk"]
+    ["jp","日本語"], ["tk","Türkçe"], ["hb","עברית"], ["n","Norsk"],
+    // Seule langue absente du jeu de 2004 : enregistrée par un contributeur.
+    // Son paquet est partiel — les quatre mots et les bruitages, pas encore
+    // les phrases de fin de partie. Le lecteur ignore un emplacement vide,
+    // donc il n'y a rien à protéger côté code.
+    ["esar","Español (AR)"]
   ];
 
   // Repli en synthèse vocale, si le paquet de sons d'une langue manque.
@@ -617,7 +622,10 @@
 
   // Baisse la musique le temps d'une insulte, pour qu'on l'entende.
   function attenuer(ms){
-    if (!gainMusique) return;
+    // `jouer` renvoie 0 quand l'emplacement est vide — le cas d'un paquet
+    // partiel. Sans ce garde-fou, le point de valeur se planifie au milieu de
+    // la rampe qui le précède : la musique décroche au lieu de descendre.
+    if (!gainMusique || !ms) return;
     var c = audio();
     var t = c.currentTime;
     gainMusique.gain.cancelScheduledValues(t);
@@ -1237,7 +1245,7 @@
     codeLangue = code;
     langue = ({ en:"en-US", fr:"fr-FR", cfr:"fr-CA", de:"de-DE", it:"it-IT",
                 nl:"nl-NL", pt:"pt-PT", rs:"ru-RU", jp:"ja-JP", tk:"tr-TR",
-                hb:"he-IL", n:"nb-NO" })[code] || "en-US";
+                hb:"he-IL", n:"nb-NO", esar:"es-AR" })[code] || "en-US";
     choisirVoix();
     if (code === "fr" || code === "cfr") mots = PRESET_FR.slice();
     else if (code === "en") mots = PRESET_EN.slice();

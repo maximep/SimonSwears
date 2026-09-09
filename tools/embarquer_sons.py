@@ -32,8 +32,15 @@ LANGUES = [
     ("pt",  "Português"),    ("rs",  "Русский"),
     ("jp",  "日本語"),        ("tk",  "Türkçe"),
     ("hb",  "עברית"),        ("n",   "Norsk"),
+    ("esar", "Español (AR)"),
 ]
 NOMS = dict(LANGUES)
+
+# Les douze langues du jeu de 2004, celles qu'on extrait d'un film Director.
+# Tout ce qui n'est pas là-dedans vient d'ailleurs — enregistrements de
+# contributeurs, passés par tools/nettoyer_voix.py — et n'a donc pas de .dcr :
+# --tout doit sauter ces langues au lieu d'aller chercher un film inexistant.
+ORIGINE = {"en", "fr", "cfr", "de", "it", "nl", "pt", "rs", "jp", "tk", "hb", "n"}
 ICI = os.path.dirname(os.path.abspath(__file__))
 RACINE = os.path.dirname(ICI)
 
@@ -80,7 +87,7 @@ def main():
     if args.tout:
         dcrs = [os.path.join(RACINE, "assets", "simonswears%s.dcr"
                              % ("" if c == "en" else "-" + c))
-                for c, _ in LANGUES]
+                for c, _ in LANGUES if c in ORIGINE]
         manquants = [d for d in dcrs if not os.path.exists(d)]
         if manquants:
             print("films absents : %s\nLancer d'abord tools/fetch_dcr.py."

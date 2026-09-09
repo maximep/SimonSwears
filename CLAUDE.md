@@ -31,7 +31,10 @@ Fait :
   `RIFX` / codec `FGDM`, entre 358 et 438 Ko. Voir Piste A pour le détail.
 - **Les 130 sons sont extraits**, en MP3, sans réencodage. `tools/extraire_sons.py`.
 - **Le remake utilise les vrais sons**, musique de fond comprise, avec sélecteur
-  des douze langues. `tools/embarquer_sons.py` fabrique les paquets.
+  de treize langues. `tools/embarquer_sons.py` fabrique les paquets.
+- **Espagnol argentin** ajouté (2026-09-09), première langue absente du jeu
+  d'origine. Enregistrée par un contributeur, nettoyée par
+  `tools/nettoyer_voix.py`. Paquet partiel, voir Piste C.
 
 Pas fait :
 
@@ -288,7 +291,15 @@ par regarder les données, elles en disent plus qu'on ne croit.
 `web/simon-swears.html`, toujours un seul fichier sans build ni dépendance.
 Les vrais échantillons ont remplacé la synthèse vocale.
 
-- **Les douze langues** sont dans un sélecteur, chargées à la demande.
+- **Treize langues** dans un sélecteur, chargées à la demande : les douze du jeu
+  d'origine, plus l'espagnol argentin, enregistré par un contributeur et passé
+  par `tools/nettoyer_voix.py`. Son paquet est **partiel** — les quatre mots et
+  les bruitages, pas encore les phrases de fin de partie. Rien à protéger côté
+  code : le lecteur ignore un emplacement absent. Seul `attenuer()` demandait un
+  garde-fou, une durée nulle y plantant le point de valeur au milieu de la rampe
+  précédente.
+- Une langue hors du jeu de 2004 n'a pas de `.dcr` : `embarquer_sons.py` tient
+  la liste `ORIGINE` pour que `--tout` ne parte pas chercher un film inexistant.
 - **La musique de fond d'origine** tourne en boucle (`loop = true` sur le
   `AudioBufferSourceNode`) et **s'atténue le temps de chaque insulte**, sans
   quoi on ne comprend pas les mots. Rampe à 0,10 puis retour à 0,34.
