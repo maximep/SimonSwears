@@ -458,6 +458,7 @@ simon-swears/
 │   ├── dcr_extract.py        # parser Afterburner
 │   ├── extraire_sons.py      # snd  SWA -> mp3 nommés
 │   ├── carte_touches.py      # restitue la carte couleur -> insulte
+│   ├── nettoyer_voix.py      # prises des contributeurs -> mp3 propres
 │   └── embarquer_sons.py     # mp3 -> paquets web/sons/<code>.js
 ├── out/                      # mp3 extraits, non commité
 └── web/
