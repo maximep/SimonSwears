@@ -469,7 +469,11 @@
   var sansMusique = false;
   var dernierePartie = null;   // la partie figée, pour le partage
   var mode     = "jour";       // "jour" (défi commun) ou "libre" (sans fin)
-  var defiFait = false;        // le défi du jour a déjà été tenté dans l'onglet
+  var defiFait = false;        // le défi du jour a déjà été tenté
+  // Numéro du défi que le verrou concerne. Le message l'affiche tel quel plutôt
+  // que de réafficher celui du jour : en cas d'incohérence, elle se voit au lieu
+  // de rester masquée derrière le bon numéro.
+  var defiVerrou = null;
   var historique = [];         // parties terminées, la plus récente en tête
 
   /* ---------- Audio ---------- */
@@ -756,8 +760,8 @@
   function afficherAccueil(){
     if (mode === "jour") {
       afficher(defiFait
-        ? "Défi n° <strong>" + numeroDefi + "</strong> déjà tenté. Reviens demain, "
-          + "ou passe en partie libre."
+        ? "Défi n° <strong>" + (defiVerrou === null ? numeroDefi : defiVerrou)
+          + "</strong> déjà tenté. Reviens demain, ou passe en partie libre."
         : "Défi n° <strong>" + numeroDefi + "</strong> — <strong>" + LONGUEUR_DEFI
           + "</strong> insultes, les mêmes pour tout le monde aujourd'hui.");
     } else {
@@ -916,6 +920,7 @@
     dernierePartie = partie;
     if (partie.mode === "jour") {
       defiFait = true;
+      defiVerrou = partie.numero;
       blocPartage.hidden = false;
       reinitPartage();
     } else {
@@ -1192,6 +1197,7 @@
     }
     if (d.defi && d.defi.numero === numeroDefi) {
       defiFait = true;
+      defiVerrou = d.defi.numero;
       // Retrouve le résultat du jour pour que le partage reste offert.
       for (var i = 0; i < historique.length; i++) {
         if (historique[i].mode === "jour" && historique[i].numero === numeroDefi) {
