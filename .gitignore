@@ -3,6 +3,9 @@ out/
 __pycache__/
 *.pyc
 
-# Les films d'origine : l'œuvre de Joe Tree, pas notre code. Hors du dépôt.
-# tools/fetch_dcr.py les récupère depuis le serveur d'origine.
-assets/*.dcr
+# assets/ ne contient que de la matière première appartenant à d'autres, jamais
+# du code : les films d'origine de Joe Tree, que tools/fetch_dcr.py va rechercher
+# sur son serveur, et les prises de voix brutes des contributeurs. Rien de tout
+# cela n'a à partir sur un dépôt public. Seul le pack fini est publié, dans
+# web/sons/.
+assets/
