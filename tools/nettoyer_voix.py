@@ -57,17 +57,23 @@ EMPREINTE = 0.18
 #   fait piéger. Sur une prise, le bruit du début était à -32 dB quand la mesure
 #   par percentile annonçait -46 dB.
 #
-# Le pic, lui, est franc et se mesure sans ambiguïté. Le corps d'un mot se situe
-# autour de pic-20 dB, le bruit de début nettement en dessous. 20 dB sépare donc
-# les deux. Descendre à 18 ne garde que la syllabe la plus forte ; monter à 24
-# laisse repasser le bruit de tête.
-RECUL_DB = 20.0
+# Le pic, lui, est franc et se mesure sans ambiguïté. Ces prises ont toutes la
+# même forme : un long plateau modéré entre pic-17 et pic-25 dB — respiration,
+# bruit de pièce, hésitation — puis la prononciation, à pic-13 et au-dessus.
+# 13 dB passe entre les deux. À 20 dB on gardait tout le plateau, et c'était
+# exactement le « léger bruit au début » qu'on entendait.
+RECUL_DB = 13.0
 
 # Tranche d'analyse de l'enveloppe, en secondes.
 TRANCHE = 0.010
 
 # Durée pendant laquelle il faut rester au-dessus du seuil pour que ce soit de
-# la parole et non un claquement. En nombre de tranches.
+# la parole et non un claquement, en nombre de tranches.
+#
+# Série ininterrompue, et non une majorité dans une fenêtre. La majorité paraît
+# plus juste — la voix module, elle repasse sous le seuil entre deux syllabes —
+# mais à l'essai elle laisse repasser les plateaux de bruit hachés, qui
+# contiennent eux aussi assez de tranches fortes pour remplir un quota.
 TENUE = 5
 
 # Marge conservée avant l'attaque et après la chute, en tranches. Couper au ras
@@ -136,12 +142,17 @@ def bornes_parole(niveaux, recul):
         return None
     seuil = max(niveaux) - recul
     debut = fin = None
+
+    def porte(i):
+        """La parole tient-elle sans interruption à partir de i ?"""
+        return all(niveaux[i + k] >= seuil for k in range(TENUE))
+
     for i in range(len(niveaux) - TENUE + 1):
-        if all(niveaux[i + k] >= seuil for k in range(TENUE)):
+        if porte(i):
             debut = max(0, i - PREROLL)
             break
     for i in range(len(niveaux) - TENUE, -1, -1):
-        if all(niveaux[i + k] >= seuil for k in range(TENUE)):
+        if porte(i):
             fin = min(len(niveaux), i + TENUE + QUEUE)
             break
     if debut is None or fin is None or fin <= debut:
